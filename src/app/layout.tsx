@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inspector } from 'react-dev-inspector';
 import './globals.css';
 import Navigation from '@/components/Navigation';
+import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
   title: {
@@ -32,12 +33,13 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <body className="antialiased min-h-screen bg-background">
+      <body className="antialiased min-h-screen bg-background flex flex-col">
         {isDev && <Inspector />}
         <Navigation />
-        <main className="min-h-screen">
+        <main className="flex-1">
           {children}
         </main>
+        <Footer />
       </body>
     </html>
   );
