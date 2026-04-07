@@ -23,8 +23,16 @@ export async function GET(request: NextRequest) {
           product_id,
           quantity,
           price,
+          seller_payout,
+          platform_fee,
+          payout_status,
           product_name,
-          product_image
+          product_image,
+          seller_profiles (
+            id,
+            business_name,
+            seller_type
+          )
         ),
         addresses (
           id,
@@ -44,9 +52,9 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ orders: data });
-  } catch (error: any) {
+  } catch (error) {
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch orders' },
+      { error: error instanceof Error ? error.message : 'Failed to fetch orders' },
       { status: 500 }
     );
   }
@@ -75,7 +83,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get cart items
+    // Get cart items with product and seller info
     const { data: cartItems, error: cartError } = await client
       .from('cart_items')
       .select(`
@@ -84,7 +92,12 @@ export async function POST(request: NextRequest) {
           id,
           name,
           price,
-          image_url
+          image_url,
+          seller_id,
+          seller_profiles (
+            id,
+            user_id
+          )
         )
       `)
       .eq('user_id', user.id);
@@ -102,12 +115,16 @@ export async function POST(request: NextRequest) {
 
     // Calculate totals
     const subtotal = cartItems.reduce(
-      (sum, item) => sum + parseFloat(item.products.price) * item.quantity,
+      (sum, item) => {
+        const product = item.products as { price: string; };
+        return sum + parseFloat(product.price) * item.quantity;
+      },
       0
     );
     const tax = subtotal * 0.1; // 10% tax
     const shipping = 10; // Flat shipping rate
-    const total = subtotal + tax + shipping;
+    const platform_fee = subtotal * 0.1; // 10% platform fee
+    const total = subtotal + tax + shipping + platform_fee;
 
     // Generate order number
     const order_number = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
@@ -123,6 +140,7 @@ export async function POST(request: NextRequest) {
         subtotal,
         tax,
         shipping,
+        platform_fee,
         payment_status: 'paid',
         payment_method: 'stripe',
         stripe_payment_intent_id,
@@ -136,15 +154,32 @@ export async function POST(request: NextRequest) {
       throw new Error(`Failed to create order: ${orderError.message}`);
     }
 
-    // Create order items
-    const orderItems = cartItems.map((item) => ({
-      order_id: order.id,
-      product_id: item.products.id,
-      quantity: item.quantity,
-      price: item.products.price,
-      product_name: item.products.name,
-      product_image: item.products.image_url,
-    }));
+    // Create order items with seller payouts
+    const orderItems = cartItems.map((item) => {
+      const product = item.products as {
+        id: string;
+        seller_id: string;
+        price: string;
+        name: string;
+        image_url: string;
+      };
+      const itemTotal = parseFloat(product.price) * item.quantity;
+      const itemPlatformFee = itemTotal * 0.1; // 10% platform fee per item
+      const sellerPayout = itemTotal - itemPlatformFee;
+
+      return {
+        order_id: order.id,
+        product_id: product.id,
+        seller_id: product.seller_id,
+        quantity: item.quantity,
+        price: product.price,
+        seller_payout: sellerPayout,
+        platform_fee: itemPlatformFee,
+        payout_status: 'pending',
+        product_name: product.name,
+        product_image: product.image_url,
+      };
+    });
 
     const { error: itemsError } = await client
       .from('order_items')
@@ -165,9 +200,9 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ order }, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
     return NextResponse.json(
-      { error: error.message || 'Failed to create order' },
+      { error: error instanceof Error ? error.message : 'Failed to create order' },
       { status: 500 }
     );
   }

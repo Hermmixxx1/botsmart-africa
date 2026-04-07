@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, integer, numeric, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, integer, numeric, index, jsonb } from "drizzle-orm/pg-core";
 import { createSchemaFactory } from "drizzle-zod";
 import { z } from "zod";
 
@@ -26,7 +26,34 @@ export const categories = pgTable(
   ]
 );
 
-// Products table
+// Seller Profiles table
+export const sellerProfiles = pgTable(
+  "seller_profiles",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+    user_id: varchar("user_id", { length: 36 }).notNull().unique(), // References Supabase auth.users
+    seller_type: varchar("seller_type", { length: 20 }).notNull(), // 'individual' or 'business'
+    status: varchar("status", { length: 20 }).notNull().default('pending'), // 'pending', 'approved', 'rejected'
+    business_name: varchar("business_name", { length: 255 }),
+    registration_number: varchar("registration_number", { length: 100 }),
+    business_document_url: varchar("business_document_url", { length: 1024 }),
+    tax_id: varchar("tax_id", { length: 100 }),
+    bank_account_name: varchar("bank_account_name", { length: 255 }),
+    bank_account_number: varchar("bank_account_number", { length: 100 }),
+    bank_routing_number: varchar("bank_routing_number", { length: 100 }),
+    stripe_account_id: varchar("stripe_account_id", { length: 255 }),
+    rejection_reason: text("rejection_reason"),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("seller_profiles_user_id_idx").on(table.user_id),
+    index("seller_profiles_status_idx").on(table.status),
+    index("seller_profiles_seller_type_idx").on(table.seller_type),
+  ]
+);
+
+// Products table (updated with seller_id)
 export const products = pgTable(
   "products",
   {
@@ -37,9 +64,10 @@ export const products = pgTable(
     price: numeric("price", { precision: 10, scale: 2 }).notNull(),
     compare_price: numeric("compare_price", { precision: 10, scale: 2 }),
     image_url: varchar("image_url", { length: 1024 }).notNull(),
-    images: text("images").array(), // Array of image URLs
+    images: text("images").array(),
     stock: integer("stock").notNull().default(0),
     category_id: varchar("category_id", { length: 36 }).references(() => categories.id, { onDelete: "set null" }),
+    seller_id: varchar("seller_id", { length: 36 }).references(() => sellerProfiles.id, { onDelete: "set null" }),
     is_active: boolean("is_active").default(true).notNull(),
     is_featured: boolean("is_featured").default(false).notNull(),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -48,6 +76,7 @@ export const products = pgTable(
   (table) => [
     index("products_slug_idx").on(table.slug),
     index("products_category_id_idx").on(table.category_id),
+    index("products_seller_id_idx").on(table.seller_id),
     index("products_is_active_idx").on(table.is_active),
     index("products_is_featured_idx").on(table.is_featured),
   ]
@@ -58,7 +87,7 @@ export const addresses = pgTable(
   "addresses",
   {
     id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
-    user_id: varchar("user_id", { length: 36 }).notNull(), // References Supabase auth.users
+    user_id: varchar("user_id", { length: 36 }).notNull(),
     full_name: varchar("full_name", { length: 255 }).notNull(),
     phone: varchar("phone", { length: 20 }).notNull(),
     address_line1: varchar("address_line1", { length: 255 }).notNull(),
@@ -81,13 +110,14 @@ export const orders = pgTable(
   "orders",
   {
     id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
-    user_id: varchar("user_id", { length: 36 }).notNull(), // References Supabase auth.users
+    user_id: varchar("user_id", { length: 36 }).notNull(),
     order_number: varchar("order_number", { length: 50 }).notNull().unique(),
     status: varchar("status", { length: 50 }).notNull().default("pending"),
     total: numeric("total", { precision: 10, scale: 2 }).notNull(),
     subtotal: numeric("subtotal", { precision: 10, scale: 2 }).notNull(),
     tax: numeric("tax", { precision: 10, scale: 2 }).notNull().default(0),
     shipping: numeric("shipping", { precision: 10, scale: 2 }).notNull().default(0),
+    platform_fee: numeric("platform_fee", { precision: 10, scale: 2 }).notNull().default(0),
     payment_status: varchar("payment_status", { length: 50 }).notNull().default("pending"),
     payment_method: varchar("payment_method", { length: 50 }),
     stripe_payment_intent_id: varchar("stripe_payment_intent_id", { length: 255 }),
@@ -105,15 +135,19 @@ export const orders = pgTable(
   ]
 );
 
-// Order Items table
+// Order Items table (updated with seller_id and seller_payout)
 export const orderItems = pgTable(
   "order_items",
   {
     id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
     order_id: varchar("order_id", { length: 36 }).notNull().references(() => orders.id, { onDelete: "cascade" }),
     product_id: varchar("product_id", { length: 36 }).notNull().references(() => products.id),
+    seller_id: varchar("seller_id", { length: 36 }).references(() => sellerProfiles.id),
     quantity: integer("quantity").notNull(),
     price: numeric("price", { precision: 10, scale: 2 }).notNull(),
+    seller_payout: numeric("seller_payout", { precision: 10, scale: 2 }).notNull(),
+    platform_fee: numeric("platform_fee", { precision: 10, scale: 2 }).notNull(),
+    payout_status: varchar("payout_status", { length: 20 }).notNull().default("pending"), // 'pending', 'paid'
     product_name: varchar("product_name", { length: 255 }).notNull(),
     product_image: varchar("product_image", { length: 1024 }),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -121,6 +155,8 @@ export const orderItems = pgTable(
   (table) => [
     index("order_items_order_id_idx").on(table.order_id),
     index("order_items_product_id_idx").on(table.product_id),
+    index("order_items_seller_id_idx").on(table.seller_id),
+    index("order_items_payout_status_idx").on(table.payout_status),
   ]
 );
 
@@ -129,7 +165,7 @@ export const cartItems = pgTable(
   "cart_items",
   {
     id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
-    user_id: varchar("user_id", { length: 36 }).notNull(), // References Supabase auth.users
+    user_id: varchar("user_id", { length: 36 }).notNull(),
     product_id: varchar("product_id", { length: 36 }).notNull().references(() => products.id, { onDelete: "cascade" }),
     quantity: integer("quantity").notNull().default(1),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -151,6 +187,21 @@ export const insertCategorySchema = createCoercedInsertSchema(categories).pick({
   image_url: true,
 });
 
+export const insertSellerProfileSchema = createCoercedInsertSchema(sellerProfiles).pick({
+  user_id: true,
+  seller_type: true,
+  status: true,
+  business_name: true,
+  registration_number: true,
+  business_document_url: true,
+  tax_id: true,
+  bank_account_name: true,
+  bank_account_number: true,
+  bank_routing_number: true,
+  stripe_account_id: true,
+  rejection_reason: true,
+});
+
 export const insertProductSchema = createCoercedInsertSchema(products).pick({
   name: true,
   slug: true,
@@ -161,6 +212,7 @@ export const insertProductSchema = createCoercedInsertSchema(products).pick({
   images: true,
   stock: true,
   category_id: true,
+  seller_id: true,
   is_active: true,
   is_featured: true,
 });
@@ -185,6 +237,7 @@ export const insertOrderSchema = createCoercedInsertSchema(orders).pick({
   subtotal: true,
   tax: true,
   shipping: true,
+  platform_fee: true,
   payment_status: true,
   payment_method: true,
   stripe_payment_intent_id: true,
@@ -195,8 +248,12 @@ export const insertOrderSchema = createCoercedInsertSchema(orders).pick({
 export const insertOrderItemSchema = createCoercedInsertSchema(orderItems).pick({
   order_id: true,
   product_id: true,
+  seller_id: true,
   quantity: true,
   price: true,
+  seller_payout: true,
+  platform_fee: true,
+  payout_status: true,
   product_name: true,
   product_image: true,
 });
@@ -209,6 +266,7 @@ export const insertCartItemSchema = createCoercedInsertSchema(cartItems).pick({
 
 // Type exports
 export type Category = typeof categories.$inferSelect;
+export type SellerProfile = typeof sellerProfiles.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type Address = typeof addresses.$inferSelect;
 export type Order = typeof orders.$inferSelect;
@@ -216,6 +274,7 @@ export type OrderItem = typeof orderItems.$inferSelect;
 export type CartItem = typeof cartItems.$inferSelect;
 
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
+export type InsertSellerProfile = z.infer<typeof insertSellerProfileSchema>;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type InsertAddress = z.infer<typeof insertAddressSchema>;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;

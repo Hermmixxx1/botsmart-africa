@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
 
     const categoryId = searchParams.get('category_id');
+    const sellerId = searchParams.get('seller_id');
     const featured = searchParams.get('featured');
     const search = searchParams.get('search');
     const page = parseInt(searchParams.get('page') || '1');
@@ -21,6 +22,12 @@ export async function GET(request: NextRequest) {
           id,
           name,
           slug
+        ),
+        seller_profiles (
+          id,
+          seller_type,
+          status,
+          business_name
         )
       `)
       .eq('is_active', true)
@@ -29,6 +36,11 @@ export async function GET(request: NextRequest) {
     // Filter by category
     if (categoryId) {
       query = query.eq('category_id', categoryId);
+    }
+
+    // Filter by seller
+    if (sellerId) {
+      query = query.eq('seller_id', sellerId);
     }
 
     // Filter featured products
@@ -61,18 +73,42 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/products - Create a new product (admin only)
+// POST /api/products - Create a new product
 export async function POST(request: NextRequest) {
   try {
     const client = getSupabaseClient();
+    const { data: { user } } = await client.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
 
     // Validate required fields
-    const { name, slug, description, price, image_url, category_id } = body;
+    const { name, slug, description, price, image_url } = body;
     if (!name || !slug || !description || !price || !image_url) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
+      );
+    }
+
+    // Get seller profile for the user
+    const { data: sellerProfile, error: sellerError } = await client
+      .from('seller_profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'approved')
+      .maybeSingle();
+
+    if (sellerError || !sellerProfile) {
+      return NextResponse.json(
+        { error: 'You must be an approved seller to create products' },
+        { status: 403 }
       );
     }
 
@@ -87,7 +123,8 @@ export async function POST(request: NextRequest) {
         image_url,
         images: body.images || [],
         stock: body.stock || 0,
-        category_id: category_id || null,
+        category_id: body.category_id || null,
+        seller_id: sellerProfile.id, // Associate product with seller
         is_active: body.is_active !== undefined ? body.is_active : true,
         is_featured: body.is_featured || false,
       })
