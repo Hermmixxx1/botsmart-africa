@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, integer, numeric, index, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, integer, numeric, index, jsonb, json } from "drizzle-orm/pg-core";
 import { createSchemaFactory } from "drizzle-zod";
 import { z } from "zod";
 
@@ -8,6 +8,87 @@ export const healthCheck = pgTable("health_check", {
 	id: integer().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 });
+
+// Admin Roles table
+export const adminRoles = pgTable(
+  "admin_roles",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+    name: varchar("name", { length: 50 }).notNull().unique(), // 'super_admin', 'admin', 'manager'
+    display_name: varchar("display_name", { length: 100 }).notNull(),
+    description: text("description"),
+    permissions: json("permissions").notNull().$type<string[]>(), // Array of permission strings
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("admin_roles_name_idx").on(table.name),
+  ]
+);
+
+// Admin Users table
+export const adminUsers = pgTable(
+  "admin_users",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+    user_id: varchar("user_id", { length: 36 }).notNull().unique(), // References Supabase auth.users
+    role_id: varchar("role_id", { length: 36 }).notNull().references(() => adminRoles.id),
+    is_active: boolean("is_active").default(true).notNull(),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("admin_users_user_id_idx").on(table.user_id),
+    index("admin_users_role_id_idx").on(table.role_id),
+  ]
+);
+
+// Pages table (CMS)
+export const pages = pgTable(
+  "pages",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+    title: varchar("title", { length: 255 }).notNull(),
+    slug: varchar("slug", { length: 255 }).notNull().unique(),
+    content: text("content").notNull(),
+    meta_title: varchar("meta_title", { length: 255 }),
+    meta_description: text("meta_description"),
+    is_published: boolean("is_published").default(false).notNull(),
+    created_by: varchar("created_by", { length: 36 }),
+    updated_by: varchar("updated_by", { length: 36 }),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("pages_slug_idx").on(table.slug),
+    index("pages_is_published_idx").on(table.is_published),
+  ]
+);
+
+// Site Settings table
+export const siteSettings = pgTable(
+  "site_settings",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+    store_name: varchar("store_name", { length: 255 }).notNull(),
+    logo_url: varchar("logo_url", { length: 1024 }),
+    favicon_url: varchar("favicon_url", { length: 1024 }),
+    primary_color: varchar("primary_color", { length: 7 }).notNull().default('#000000'),
+    secondary_color: varchar("secondary_color", { length: 7 }).notNull().default('#ffffff'),
+    font_family: varchar("font_family", { length: 100 }).notNull().default('Inter'),
+    contact_email: varchar("contact_email", { length: 255 }),
+    contact_phone: varchar("contact_phone", { length: 50 }),
+    social_media: json("social_media").$type<{ facebook?: string; twitter?: string; instagram?: string; linkedin?: string; }>(),
+    platform_fee_percentage: numeric("platform_fee_percentage", { precision: 5, scale: 2 }).notNull().default(10),
+    shipping_policy: text("shipping_policy"),
+    return_policy: text("return_policy"),
+    privacy_policy: text("privacy_policy"),
+    terms_of_service: text("terms_of_service"),
+    updated_by: varchar("updated_by", { length: 36 }),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }),
+  }
+);
 
 // Categories table
 export const categories = pgTable(
@@ -180,6 +261,48 @@ export const cartItems = pgTable(
 // Zod schemas for validation
 const { createInsertSchema: createCoercedInsertSchema } = createSchemaFactory({ coerce: { date: true } });
 
+export const insertAdminRoleSchema = createCoercedInsertSchema(adminRoles).pick({
+  name: true,
+  display_name: true,
+  description: true,
+  permissions: true,
+});
+
+export const insertAdminUserSchema = createCoercedInsertSchema(adminUsers).pick({
+  user_id: true,
+  role_id: true,
+  is_active: true,
+});
+
+export const insertPageSchema = createCoercedInsertSchema(pages).pick({
+  title: true,
+  slug: true,
+  content: true,
+  meta_title: true,
+  meta_description: true,
+  is_published: true,
+  created_by: true,
+  updated_by: true,
+});
+
+export const insertSiteSettingSchema = createCoercedInsertSchema(siteSettings).pick({
+  store_name: true,
+  logo_url: true,
+  favicon_url: true,
+  primary_color: true,
+  secondary_color: true,
+  font_family: true,
+  contact_email: true,
+  contact_phone: true,
+  social_media: true,
+  platform_fee_percentage: true,
+  shipping_policy: true,
+  return_policy: true,
+  privacy_policy: true,
+  terms_of_service: true,
+  updated_by: true,
+});
+
 export const insertCategorySchema = createCoercedInsertSchema(categories).pick({
   name: true,
   slug: true,
@@ -265,6 +388,11 @@ export const insertCartItemSchema = createCoercedInsertSchema(cartItems).pick({
 });
 
 // Type exports
+export type HealthCheck = typeof healthCheck.$inferSelect;
+export type AdminRole = typeof adminRoles.$inferSelect;
+export type AdminUser = typeof adminUsers.$inferSelect;
+export type Page = typeof pages.$inferSelect;
+export type SiteSettings = typeof siteSettings.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type SellerProfile = typeof sellerProfiles.$inferSelect;
 export type Product = typeof products.$inferSelect;
@@ -273,6 +401,10 @@ export type Order = typeof orders.$inferSelect;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type CartItem = typeof cartItems.$inferSelect;
 
+export type InsertAdminRole = z.infer<typeof insertAdminRoleSchema>;
+export type InsertAdminUser = z.infer<typeof insertAdminUserSchema>;
+export type InsertPage = z.infer<typeof insertPageSchema>;
+export type InsertSiteSetting = z.infer<typeof insertSiteSettingSchema>;
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type InsertSellerProfile = z.infer<typeof insertSellerProfileSchema>;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
