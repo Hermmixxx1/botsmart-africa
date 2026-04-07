@@ -4,11 +4,11 @@ import { getSupabaseClient } from '@/storage/database/supabase-client';
 // GET /api/products/[id] - Get a single product
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const client = getSupabaseClient();
-    const { id } = params;
+    const { id } = await params;
 
     const { data, error } = await client
       .from('products')
@@ -47,11 +47,11 @@ export async function GET(
 // PUT /api/products/[id] - Update a product (admin only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const client = getSupabaseClient();
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
 
     const { data, error } = await client
@@ -89,11 +89,11 @@ export async function PUT(
 // DELETE /api/products/[id] - Delete a product (admin only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const client = getSupabaseClient();
-    const { id } = params;
+    const { id } = await params;
 
     const { error } = await client
       .from('products')

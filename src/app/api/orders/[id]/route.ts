@@ -4,12 +4,12 @@ import { getSupabaseClient } from '@/storage/database/supabase-client';
 // GET /api/orders/[id] - Get a single order
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const client = getSupabaseClient();
     const { data: { user } } = await client.auth.getUser();
-    const { id } = params;
+    const { id } = await params;
 
     if (!user) {
       return NextResponse.json(

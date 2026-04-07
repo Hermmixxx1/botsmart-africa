@@ -4,12 +4,12 @@ import { getSupabaseClient } from '@/storage/database/supabase-client';
 // PUT /api/cart/[id] - Update cart item quantity
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const client = getSupabaseClient();
     const { data: { user } } = await client.auth.getUser();
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     const { quantity } = body;
 
@@ -51,12 +51,12 @@ export async function PUT(
 // DELETE /api/cart/[id] - Remove item from cart
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const client = getSupabaseClient();
     const { data: { user } } = await client.auth.getUser();
-    const { id } = params;
+    const { id } = await params;
 
     if (!user) {
       return NextResponse.json(

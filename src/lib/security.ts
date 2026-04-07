@@ -51,7 +51,10 @@ export function getClientIdentifier(request: NextRequest): string {
   const realIP = request.headers.get('x-real-ip');
   const ip = request.headers.get('cf-connecting-ip');
 
-  return ip || realIP || forwarded || request.ip || 'unknown';
+  // Extract first IP from forwarded header (if it contains multiple)
+  const firstForwardedIP = forwarded?.split(',')[0]?.trim();
+
+  return ip || realIP || firstForwardedIP || 'unknown';
 }
 
 /**

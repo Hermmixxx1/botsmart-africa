@@ -116,7 +116,8 @@ export async function POST(request: NextRequest) {
     // Calculate totals
     const subtotal = cartItems.reduce(
       (sum, item) => {
-        const product = item.products as { price: string; };
+        const products = item.products as { price: string }[];
+        const product = products[0];
         return sum + parseFloat(product.price) * item.quantity;
       },
       0
@@ -156,13 +157,14 @@ export async function POST(request: NextRequest) {
 
     // Create order items with seller payouts
     const orderItems = cartItems.map((item) => {
-      const product = item.products as {
+      const products = item.products as {
         id: string;
         seller_id: string;
         price: string;
         name: string;
         image_url: string;
-      };
+      }[];
+      const product = products[0];
       const itemTotal = parseFloat(product.price) * item.quantity;
       const itemPlatformFee = itemTotal * 0.1; // 10% platform fee per item
       const sellerPayout = itemTotal - itemPlatformFee;

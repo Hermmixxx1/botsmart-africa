@@ -108,9 +108,10 @@ export async function getUserPermissions(userId: string): Promise<UserPermission
     }
 
     // If user is an admin
-    if (adminData && adminData.is_active && adminData.admin_roles) {
-      const roleName = adminData.admin_roles.name as UserRole;
-      const permissions = adminData.admin_roles.permissions as string[];
+    if (adminData && adminData.is_active && adminData.admin_roles && adminData.admin_roles.length > 0) {
+      const role = adminData.admin_roles[0];
+      const roleName = role.name as UserRole;
+      const permissions = role.permissions as string[];
 
       return {
         role: roleName,

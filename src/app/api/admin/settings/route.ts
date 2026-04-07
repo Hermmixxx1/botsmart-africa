@@ -45,6 +45,7 @@ export async function PATCH(request: NextRequest) {
       favicon_url,
       primary_color,
       secondary_color,
+      accent_color,
       font_family,
       contact_email,
       contact_phone,
@@ -65,6 +66,7 @@ export async function PATCH(request: NextRequest) {
     if (favicon_url !== undefined) updateData.favicon_url = favicon_url;
     if (primary_color) updateData.primary_color = primary_color;
     if (secondary_color) updateData.secondary_color = secondary_color;
+    if (accent_color) updateData.accent_color = accent_color;
     if (font_family) updateData.font_family = font_family;
     if (contact_email !== undefined) updateData.contact_email = contact_email;
     if (contact_phone !== undefined) updateData.contact_phone = contact_phone;

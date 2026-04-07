@@ -29,10 +29,6 @@ export default function CheckoutPage() {
     country: 'US',
   });
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
   const checkAuth = async () => {
     const currentUser = await getCurrentUser();
     if (!currentUser) {
@@ -42,6 +38,10 @@ export default function CheckoutPage() {
     setUser(currentUser);
     setLoading(false);
   };
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
 
   const subtotal = getCartTotal();
   const tax = subtotal * 0.1;

@@ -14,10 +14,6 @@ export default function AdminPage() {
   const { setUser } = useStore();
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
   const checkAuth = async () => {
     const user = await getCurrentUser();
     if (!user) {
@@ -26,6 +22,10 @@ export default function AdminPage() {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
 
   const handleSignOut = async () => {
     await signOut();

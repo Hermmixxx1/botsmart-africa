@@ -53,7 +53,7 @@ export default function SuperAdminDashboardPage() {
       if (ordersRes.ok) {
         const ordersData = await ordersRes.json();
         const totalRevenue = (ordersData.orders || []).reduce((sum: number, order: { total: string }) =>
-          sum + parseFloat(order.total || 0), 0);
+          sum + parseFloat(order.total || '0'), 0);
         setStats(prev => ({
           ...prev,
           totalOrders: (ordersData.orders || []).length,

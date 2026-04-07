@@ -18,6 +18,7 @@ interface SiteSettings {
   favicon_url: string;
   primary_color: string;
   secondary_color: string;
+  accent_color: string;
   font_family: string;
   contact_email: string;
   contact_phone: string;
@@ -42,8 +43,9 @@ export default function AdminSettingsPage() {
     store_name: '',
     logo_url: '',
     favicon_url: '',
-    primary_color: '#000000',
+    primary_color: '#1e3a5f',
     secondary_color: '#ffffff',
+    accent_color: '#000000',
     font_family: 'Inter',
     contact_email: '',
     contact_phone: '',
@@ -253,6 +255,28 @@ export default function AdminSettingsPage() {
                       className="flex-1"
                     />
                   </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="accent_color">Accent Color</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="accent_color"
+                      type="color"
+                      value={settings.accent_color}
+                      onChange={(e) => setSettings({ ...settings, accent_color: e.target.value })}
+                      className="w-20 h-10"
+                    />
+                    <Input
+                      value={settings.accent_color}
+                      onChange={(e) => setSettings({ ...settings, accent_color: e.target.value })}
+                      placeholder="#000000"
+                      className="flex-1"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Used for highlights and emphasis
+                  </p>
                 </div>
               </CardContent>
             </Card>

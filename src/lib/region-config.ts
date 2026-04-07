@@ -360,4 +360,10 @@ export const BUSINESS_CONFIG = {
     linkedin: 'https://linkedin.com/company/leboganggroup',
     instagram: 'https://instagram.com/leboganggroup',
   },
+  colors: {
+    primary: '#1e3a5f',      // Deep blue
+    secondary: '#ffffff',    // White
+    accent: '#000000',       // Black
+    hover: '#2a4a75',        // Lighter blue for hover states
+  },
 };
