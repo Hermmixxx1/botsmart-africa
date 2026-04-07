@@ -42,7 +42,7 @@ export default function Navigation() {
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
             <ShoppingBag className="h-6 w-6" />
-            <span className="text-xl font-bold">ShopHub</span>
+            <span className="text-xl font-bold">The Lebogang Group</span>
           </Link>
 
           {/* Desktop Navigation */}

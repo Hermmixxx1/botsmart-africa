@@ -258,6 +258,29 @@ export const cartItems = pgTable(
   ]
 );
 
+// Audit Logs table (security tracking)
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+    user_id: varchar("user_id", { length: 36 }).notNull(),
+    action: varchar("action", { length: 100 }).notNull(),
+    entity_type: varchar("entity_type", { length: 50 }).notNull(),
+    entity_id: varchar("entity_id", { length: 36 }),
+    ip_address: varchar("ip_address", { length: 50 }).notNull(),
+    user_agent: text("user_agent"),
+    metadata: jsonb("metadata"),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("audit_logs_user_id_idx").on(table.user_id),
+    index("audit_logs_action_idx").on(table.action),
+    index("audit_logs_entity_type_idx").on(table.entity_type),
+    index("audit_logs_entity_id_idx").on(table.entity_id),
+    index("audit_logs_created_at_idx").on(table.created_at),
+  ]
+);
+
 // Zod schemas for validation
 const { createInsertSchema: createCoercedInsertSchema } = createSchemaFactory({ coerce: { date: true } });
 
@@ -400,6 +423,7 @@ export type Address = typeof addresses.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type CartItem = typeof cartItems.$inferSelect;
+export type AuditLog = typeof auditLogs.$inferSelect;
 
 export type InsertAdminRole = z.infer<typeof insertAdminRoleSchema>;
 export type InsertAdminUser = z.infer<typeof insertAdminUserSchema>;

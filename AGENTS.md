@@ -11,6 +11,34 @@
 - **Auth**: Supabase Auth
 - **Payment**: Stripe (Multi-vendor Connect - pending integration)
 
+### 业务配置
+
+- **企业名称**: The Lebogang Group
+- **目标市场**: 南部非洲（12个国家）
+- **默认国家**: 南非 (ZA)
+- **默认货币**: 南非兰特 (ZAR)
+- **默认语言**: 英语 (en-ZA)
+- **支持国家**: ZA, NA, BW, ZW, MZ, LS, SZ, AO, ZM, MW, MG, TZ
+- **支持货币**: ZAR, NAD, BWP, ZWL, MZN, LSL, SZL, AOA, ZMW, MWK, MGA, TZS
+- **支持语言**: en, af, pt, zu, xhosa, st, tn, sw, ny (15种语言)
+
+### 安全特性
+
+- **速率限制**: API端点每15分钟100次请求
+- **CSRF保护**: 基于令牌的跨站请求伪造防护
+- **XSS防护**: 输入清理和输出编码
+- **输入验证**: 邮箱、电话、密码强度验证
+- **安全头**: CSP, HSTS, X-Frame-Options等
+- **审计日志**: 完整的用户和管理员操作跟踪
+- **IP白名单**: 管理员访问IP限制（可选）
+
+### 区域配置文件
+
+- `src/lib/region-config.ts` - 国家、货币、语言配置
+- `src/lib/security.ts` - 安全工具和中间件
+- `src/lib/audit-logger.ts` - 审计日志系统
+- `SOUTHERN_AFRICA_CONFIG.md` - 完整的区域配置文档
+
 ## 目录结构
 
 ```
