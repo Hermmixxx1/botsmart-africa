@@ -1,35 +1,242 @@
-import type { Metadata } from 'next';
+import { Suspense } from 'react';
+import Link from 'next/link';
 import Image from 'next/image';
+import { ArrowRight, Star, ShoppingCart } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export const metadata: Metadata = {
-  title: '扣子编程 - AI 开发伙伴',
-  description: '扣子编程，你的 AI 开发伙伴已就位',
-};
+async function getFeaturedProducts() {
+  const baseUrl = process.env.COZE_PROJECT_DOMAIN_DEFAULT || 'http://localhost:5000';
+  const response = await fetch(`${baseUrl}/api/products?featured=true&limit=4`, {
+    cache: 'no-store',
+  });
+  const data = await response.json();
+  return data.products || [];
+}
 
-export default function Home() {
+async function getCategories() {
+  const baseUrl = process.env.COZE_PROJECT_DOMAIN_DEFAULT || 'http://localhost:5000';
+  const response = await fetch(`${baseUrl}/api/categories`, {
+    cache: 'no-store',
+  });
+  const data = await response.json();
+  return data.categories || [];
+}
+
+function ProductCard({ product }: { product: any }) {
   return (
-    <div className="flex h-full items-center justify-center bg-background text-foreground transition-colors duration-300 dark:bg-background dark:text-foreground overflow-hidden min-h-screen">
-      {/* 主容器 */}
-      <main className="flex w-full h-full max-w-3xl flex-col items-center justify-center px-16 py-32 sm:items-center">
-        <div className="flex flex-col items-center justify-between gap-4">
-           <Image
-            src="https://lf-coze-web-cdn.coze.cn/obj/eden-cn/lm-lgvj/ljhwZthlaukjlkulzlp/coze-coding/icon/coze-coding.gif"
-            alt="扣子编程 Logo"
-            width={156}
-            height={130}
+    <Card className="group overflow-hidden transition-all hover:shadow-lg">
+      <Link href={`/products/${product.slug}`}>
+        <div className="aspect-square overflow-hidden bg-muted">
+          <Image
+            src={product.image_url}
+            alt={product.name}
+            width={400}
+            height={400}
+            className="h-full w-full object-cover transition-transform group-hover:scale-105"
           />
-          <div>
-            <div className="flex flex-col items-center gap-2 text-center sm:items-center sm:text-center">
-              <h1 className="max-w-xl text-base font-semibold leading-tight tracking-tight text-foreground dark:text-foreground">
-                应用开发中
-              </h1>
-              <p className="max-w-2xl text-sm leading-8 text-muted-foreground dark:text-muted-foreground">
-                请稍后，页面即将呈现
-              </p>
+        </div>
+      </Link>
+      <CardHeader className="p-4">
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="line-clamp-2 text-lg">{product.name}</CardTitle>
+          {product.compare_price && (
+            <Badge variant="destructive">Sale</Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex">
+            {[...Array(5)].map((_, i) => (
+              <Star
+                key={i}
+                className={`h-4 w-4 ${i < 4 ? 'fill-primary text-primary' : 'fill-muted text-muted'}`}
+              />
+            ))}
+          </div>
+          <span className="text-sm text-muted-foreground">(4.0)</span>
+        </div>
+      </CardHeader>
+      <CardContent className="p-4 pt-0">
+        <div className="flex items-baseline gap-2">
+          <span className="text-2xl font-bold">${parseFloat(product.price).toFixed(2)}</span>
+          {product.compare_price && (
+            <span className="text-sm text-muted-foreground line-through">
+              ${parseFloat(product.compare_price).toFixed(2)}
+            </span>
+          )}
+        </div>
+        {product.stock < 10 && product.stock > 0 && (
+          <Badge variant="secondary" className="mt-2">
+            Only {product.stock} left!
+          </Badge>
+        )}
+      </CardContent>
+      <CardFooter className="p-4">
+        <Button asChild className="w-full">
+          <Link href={`/products/${product.slug}`}>
+            <ShoppingCart className="mr-2 h-4 w-4" />
+            Add to Cart
+          </Link>
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
+function CategoryCard({ category }: { category: any }) {
+  return (
+    <Link href={`/products?category=${category.slug}`} className="group">
+      <Card className="overflow-hidden transition-all hover:shadow-lg">
+        <div className="aspect-video overflow-hidden bg-muted">
+          <Image
+            src={category.image_url || '/placeholder.jpg'}
+            alt={category.name}
+            width={600}
+            height={400}
+            className="h-full w-full object-cover transition-transform group-hover:scale-105"
+          />
+        </div>
+        <CardHeader>
+          <CardTitle className="text-center text-xl">{category.name}</CardTitle>
+        </CardHeader>
+      </Card>
+    </Link>
+  );
+}
+
+function FeaturedProductsSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      {[...Array(4)].map((_, i) => (
+        <Card key={i}>
+          <Skeleton className="aspect-square" />
+          <CardHeader>
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-8 w-1/2" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+export default async function HomePage() {
+  const [featuredProducts, categories] = await Promise.all([
+    getFeaturedProducts(),
+    getCategories(),
+  ]);
+
+  return (
+    <div className="flex flex-col">
+      {/* Hero Section */}
+      <section className="relative bg-gradient-to-br from-primary/10 to-primary/5 py-20">
+        <div className="container mx-auto px-4">
+          <div className="mx-auto max-w-3xl text-center">
+            <h1 className="mb-6 text-4xl font-bold tracking-tight sm:text-6xl">
+              Welcome to ShopHub
+            </h1>
+            <p className="mb-8 text-xl text-muted-foreground">
+              Discover premium products at unbeatable prices. Shop with confidence knowing you're getting the best quality and service.
+            </p>
+            <div className="flex justify-center gap-4">
+              <Button size="lg" asChild>
+                <Link href="/products">
+                  Shop Now
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" asChild>
+                <Link href="/products?featured=true">
+                  View Featured
+                </Link>
+              </Button>
             </div>
           </div>
         </div>
-      </main>
+      </section>
+
+      {/* Categories Section */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <h2 className="mb-8 text-3xl font-bold tracking-tight">Shop by Category</h2>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {categories.slice(0, 4).map((category: any) => (
+              <CategoryCard key={category.id} category={category} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Products Section */}
+      <section className="bg-muted/50 py-16">
+        <div className="container mx-auto px-4">
+          <div className="mb-8 flex items-center justify-between">
+            <h2 className="text-3xl font-bold tracking-tight">Featured Products</h2>
+            <Button variant="ghost" asChild>
+              <Link href="/products">
+                View All
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+          <Suspense fallback={<FeaturedProductsSkeleton />}>
+            {featuredProducts.length > 0 ? (
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                {featuredProducts.map((product: any) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                No featured products available at the moment.
+              </div>
+            )}
+          </Suspense>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle>Free Shipping</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Enjoy free shipping on all orders over $50. Fast and reliable delivery to your doorstep.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Secure Payment</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Your payment information is safe with us. We use industry-standard encryption.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>24/7 Support</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Our customer support team is available around the clock to help you with any questions.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
