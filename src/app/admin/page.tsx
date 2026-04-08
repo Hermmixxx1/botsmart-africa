@@ -17,7 +17,7 @@ export default function AdminPage() {
   const checkAuth = async () => {
     const user = await getCurrentUser();
     if (!user) {
-      router.push('/auth');
+      router.push('/auth?redirect=/admin');
       return;
     }
     setLoading(false);

@@ -1,17 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useStore } from '@/store/useStore';
+import { getUserPermissions } from '@/lib/rbac';
 
-export default function AuthPage() {
+function AuthContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get('redirect') || '/';
   const { setUser } = useStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -55,7 +58,13 @@ export default function AuthPage() {
         avatar_url: data.user.user_metadata.avatar_url,
       });
 
-      router.push('/');
+      // Redirect to the specified URL or check admin status
+      const permissions = await getUserPermissions(data.user.id);
+      if (permissions && permissions.isAdmin) {
+        router.push(redirect === '/' ? '/admin' : redirect);
+      } else {
+        router.push(redirect);
+      }
       router.refresh();
     } catch (err: any) {
       setError(err.message);
@@ -104,7 +113,13 @@ export default function AuthPage() {
         avatar_url: data.user.user_metadata.avatar_url,
       });
 
-      router.push('/');
+      // Redirect to the specified URL or check admin status
+      const permissions = await getUserPermissions(data.user.id);
+      if (permissions && permissions.isAdmin) {
+        router.push(redirect === '/' ? '/admin' : redirect);
+      } else {
+        router.push(redirect);
+      }
       router.refresh();
     } catch (err: any) {
       setError(err.message);
@@ -239,5 +254,20 @@ export default function AuthPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
+          <p className="mt-4 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    }>
+      <AuthContent />
+    </Suspense>
   );
 }
