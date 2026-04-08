@@ -101,12 +101,14 @@ function getSupabaseClient(token?: string): SupabaseClient {
         timeout: 60000,
       },
       auth: {
-        autoRefreshToken: false,
-        persistSession: false,
+        autoRefreshToken: true,
+        persistSession: true,
+        storageKey: 'supabase-auth',
       },
     });
   }
 
+  // Client-side client with session persistence
   return createClient(url, key, {
     db: {
       timeout: 60000,
@@ -114,7 +116,8 @@ function getSupabaseClient(token?: string): SupabaseClient {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
-      storageKey: 'supabase-auth-token',
+      storageKey: 'supabase-auth',
+      detectSessionInUrl: true,
     },
   });
 }

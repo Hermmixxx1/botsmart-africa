@@ -1,29 +1,69 @@
-import { redirect } from 'next/navigation';
-import { getCurrentUser } from '@/lib/auth-server';
-import { getUserPermissions } from '@/lib/rbac';
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Package, ShoppingBag, DollarSign, Users, Settings, LayoutDashboard, FileText, UserPlus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Package, ShoppingBag, DollarSign, Users, Settings, LayoutDashboard, FileText, UserPlus, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { AdminSignOutButton } from '@/components/AdminSignOutButton';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getCurrentUser } from '@/lib/auth';
 
-// Tell Next.js to not statically build admin pages
-export const dynamic = 'force-dynamic';
-
-export default async function AdminLayout({
+export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
 
-  if (!user) {
-    redirect('/auth?redirect=/admin');
-  }
+  useEffect(() => {
+    checkAuth();
+  }, []);
 
-  const permissions = await getUserPermissions(user.id);
+  const checkAuth = async () => {
+    try {
+      const user = await getCurrentUser();
+      
+      if (!user) {
+        router.push('/auth?redirect=/admin');
+        return;
+      }
 
-  if (!permissions || !permissions.isAdmin) {
-    redirect('/?error=not_admin');
+      // Check if user is admin by checking admin_users table
+      const response = await fetch('/api/auth/check-admin');
+      const data = await response.json();
+      
+      if (!data.isAdmin) {
+        router.push('/?error=not_admin');
+        return;
+      }
+
+      setLoading(false);
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      router.push('/auth?redirect=/admin');
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await fetch('/api/auth/signout', { method: 'POST' });
+      router.push('/auth');
+      router.refresh();
+    } catch (error) {
+      console.error('Sign out failed:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -37,29 +77,24 @@ export default async function AdminLayout({
                 <span className="font-bold">Admin</span>
               </Link>
 
-              <div className="flex items-center space-x-4">
+              <div className="hidden md:flex items-center space-x-4">
                 <Link href="/admin">
                   <Button variant="ghost" size="sm">
-                    <DollarSign className="mr-2 h-4 w-4" />
                     Dashboard
                   </Button>
                 </Link>
-                {permissions.isSuperAdmin && (
-                  <>
-                    <Link href="/admin/settings">
-                      <Button variant="ghost" size="sm">
-                        <Settings className="mr-2 h-4 w-4" />
-                        Settings
-                      </Button>
-                    </Link>
-                    <Link href="/admin/admins">
-                      <Button variant="ghost" size="sm">
-                        <UserPlus className="mr-2 h-4 w-4" />
-                        Admins
-                      </Button>
-                    </Link>
-                  </>
-                )}
+                <Link href="/admin/settings">
+                  <Button variant="ghost" size="sm">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </Button>
+                </Link>
+                <Link href="/admin/admins">
+                  <Button variant="ghost" size="sm">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Admins
+                  </Button>
+                </Link>
                 <Link href="/admin/products">
                   <Button variant="ghost" size="sm">
                     <Package className="mr-2 h-4 w-4" />
@@ -88,10 +123,10 @@ export default async function AdminLayout({
             </div>
 
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-muted-foreground">
-                {user.email}
-              </span>
-              <AdminSignOutButton />
+              <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </Button>
             </div>
           </div>
         </div>

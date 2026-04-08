@@ -9,14 +9,27 @@ export interface AuthUser {
   };
 }
 
-// Get current user from session (Client-side only)
+// Get current user from session (Client-side)
 export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
     const client = getSupabaseClient();
-    const { data: { user }, error } = await client.auth.getUser();
+    
+    // Get the session from localStorage or cookies
+    const { data: { session }, error } = await client.auth.getSession();
 
     if (error) {
-      console.error('Failed to get user:', error);
+      console.error('Failed to get session:', error);
+      return null;
+    }
+
+    if (!session) {
+      return null;
+    }
+
+    const { data: { user }, error: userError } = await client.auth.getUser();
+
+    if (userError) {
+      console.error('Failed to get user:', userError);
       return null;
     }
 

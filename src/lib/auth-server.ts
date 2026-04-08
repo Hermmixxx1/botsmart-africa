@@ -1,5 +1,5 @@
-import { getSupabaseClient } from '@/storage/database/supabase-client';
-import { cookies } from 'next/headers';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { NextRequest, NextResponse } from 'next/server';
 
 export interface AuthUser {
   id: string;
@@ -10,19 +10,74 @@ export interface AuthUser {
   };
 }
 
-// Get current user from session using cookies (Server-side only)
+// Create a Supabase server client from a request
+export function createSupabaseServerClient(request: NextRequest) {
+  // Create the Supabase client
+  const supabase = createServerClient(
+    process.env.COZE_SUPABASE_URL!,
+    process.env.COZE_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          const response = NextResponse.next();
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set({
+              name,
+              value,
+              ...options,
+            });
+          });
+        },
+      },
+    }
+  );
+
+  return supabase;
+}
+
+// Get current user from session (for Server Components)
 export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
-    const cookieStore = cookies();
-    const accessToken = cookieStore.get('sb-access-token')?.value;
+    // Import request cookies at runtime to avoid issues
+    const { cookies } = await import('next/headers');
+    const cookieStore = await cookies();
+    const requestCookies = cookieStore.getAll();
+    
+    // Create a minimal request object
+    const headers = new Headers();
+    requestCookies.forEach(cookie => {
+      headers.append('cookie', `${cookie.name}=${cookie.value}`);
+    });
+    
+    const mockRequest = new NextRequest('http://localhost', {
+      headers,
+    });
 
-    if (!accessToken) {
-      return null;
-    }
+    const supabase = createServerClient(
+      process.env.COZE_SUPABASE_URL!,
+      process.env.COZE_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return requestCookies;
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) => {
+                cookieStore.set(name, value, options);
+              });
+            } catch {
+              // Ignore
+            }
+          },
+        },
+      }
+    );
 
-    // Use the access token to get the user
-    const client = getSupabaseClient(accessToken);
-    const { data: { user }, error } = await client.auth.getUser();
+    const { data: { user }, error } = await supabase.auth.getUser();
 
     if (error) {
       console.error('Failed to get user:', error);
@@ -36,10 +91,43 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   }
 }
 
-// Sign in user (Server-side only)
+// Sign in user (for API routes)
 export async function signIn(email: string, password: string) {
-  const client = getSupabaseClient();
-  const { data, error } = await client.auth.signInWithPassword({
+  const { cookies } = await import('next/headers');
+  const cookieStore = await cookies();
+  const requestCookies = cookieStore.getAll();
+  
+  const headers = new Headers();
+  requestCookies.forEach(cookie => {
+    headers.append('cookie', `${cookie.name}=${cookie.value}`);
+  });
+  
+  const mockRequest = new NextRequest('http://localhost', {
+    headers,
+  });
+  
+  const supabase = createServerClient(
+    process.env.COZE_SUPABASE_URL!,
+    process.env.COZE_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return requestCookies;
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          } catch {
+            // Ignore
+          }
+        },
+      },
+    }
+  );
+
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
@@ -48,15 +136,47 @@ export async function signIn(email: string, password: string) {
   return data;
 }
 
-// Sign out user (Server-side only)
+// Sign out user
 export async function signOut() {
-  const client = getSupabaseClient();
-  const { error } = await client.auth.signOut();
+  const { cookies } = await import('next/headers');
+  const cookieStore = await cookies();
+  const requestCookies = cookieStore.getAll();
+  
+  const headers = new Headers();
+  requestCookies.forEach(cookie => {
+    headers.append('cookie', `${cookie.name}=${cookie.value}`);
+  });
+  
+  const mockRequest = new NextRequest('http://localhost', {
+    headers,
+  });
+  
+  const supabase = createServerClient(
+    process.env.COZE_SUPABASE_URL!,
+    process.env.COZE_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return requestCookies;
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          } catch {
+            // Ignore
+          }
+        },
+      },
+    }
+  );
 
+  const { error } = await supabase.auth.signOut();
   if (error) throw new Error(`Sign out failed: ${error.message}`);
 }
 
-// Check if user is authenticated (Server-side only)
+// Check if user is authenticated
 export async function isAuthenticated(): Promise<boolean> {
   const user = await getCurrentUser();
   return !!user;
