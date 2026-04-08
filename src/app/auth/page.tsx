@@ -8,19 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { useStore } from '@/store/useStore';
 
-// Create Supabase client directly for client-side auth
-const supabaseUrl = process.env.COZE_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.COZE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    storageKey: 'supabase-auth',
-  },
-});
-
+// Create Supabase client inside the component to ensure environment is ready
 function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -28,6 +19,18 @@ function AuthContent() {
   const { setUser } = useStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Create Supabase client inside component
+  const supabase: SupabaseClient = createClient(
+    (typeof window !== 'undefined' && (window as any).__SUPABASE_URL__) || '',
+    (typeof window !== 'undefined' && (window as any).__SUPABASE_ANON_KEY__) || '',
+    {
+      auth: {
+        persistSession: true,
+        storageKey: 'supabase-auth',
+      },
+    }
+  );
 
   // Sign in form state
   const [signInData, setSignInData] = useState({
