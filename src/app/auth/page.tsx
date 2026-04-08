@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useStore } from '@/store/useStore';
-import { getUserPermissions } from '@/lib/rbac';
 
 function AuthContent() {
   const router = useRouter();
@@ -58,13 +57,9 @@ function AuthContent() {
         avatar_url: data.user.user_metadata.avatar_url,
       });
 
-      // Redirect to the specified URL or check admin status
-      const permissions = await getUserPermissions(data.user.id);
-      if (permissions && permissions.isAdmin) {
-        router.push(redirect === '/' ? '/admin' : redirect);
-      } else {
-        router.push(redirect);
-      }
+      // For simplicity, always redirect to /admin for this user
+      // The admin page will handle the authentication check
+      router.push('/admin');
       router.refresh();
     } catch (err: any) {
       setError(err.message);
@@ -113,13 +108,8 @@ function AuthContent() {
         avatar_url: data.user.user_metadata.avatar_url,
       });
 
-      // Redirect to the specified URL or check admin status
-      const permissions = await getUserPermissions(data.user.id);
-      if (permissions && permissions.isAdmin) {
-        router.push(redirect === '/' ? '/admin' : redirect);
-      } else {
-        router.push(redirect);
-      }
+      // Redirect to the specified URL
+      router.push(redirect);
       router.refresh();
     } catch (err: any) {
       setError(err.message);

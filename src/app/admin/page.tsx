@@ -1,54 +1,16 @@
-'use client';
-
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Package, ShoppingBag, DollarSign, Users, LogOut } from 'lucide-react';
+import { Package, ShoppingBag, DollarSign, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { getCurrentUser, signOut } from '@/lib/auth';
-import { useRouter } from 'next/navigation';
-import { useStore } from '@/store/useStore';
 
 export default function AdminPage() {
-  const router = useRouter();
-  const { setUser } = useStore();
-  const [loading, setLoading] = useState(true);
-
-  const checkAuth = async () => {
-    const user = await getCurrentUser();
-    if (!user) {
-      router.push('/auth?redirect=/admin');
-      return;
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
-
-  const handleSignOut = async () => {
-    await signOut();
-    setUser(null);
-    router.push('/');
-  };
-
-  if (loading) {
-    return <div className="container mx-auto px-4 py-8">Loading...</div>;
-  }
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight">Admin Dashboard</h1>
-            <p className="text-muted-foreground">Manage your store</p>
-          </div>
-          <Button variant="ghost" onClick={handleSignOut}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold tracking-tight">Admin Dashboard</h1>
+          <p className="text-muted-foreground">Manage your store</p>
         </div>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">

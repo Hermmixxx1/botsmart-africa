@@ -1,15 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { signOut } from '@/lib/auth';
 
-// POST /api/auth/signout - Sign out user
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     await signOut();
-    return NextResponse.json({ message: 'Signed out successfully' });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || 'Failed to sign out' },
-      { status: 500 }
-    );
+
+    const baseUrl = process.env.COZE_PROJECT_DOMAIN_DEFAULT || 'http://localhost:5000';
+    return NextResponse.redirect(new URL('/auth', baseUrl));
+  } catch (error) {
+    console.error('Sign out error:', error);
+    const baseUrl = process.env.COZE_PROJECT_DOMAIN_DEFAULT || 'http://localhost:5000';
+    return NextResponse.redirect(new URL('/auth?error=signout_failed', baseUrl));
   }
 }
