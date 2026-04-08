@@ -14,6 +14,7 @@ export async function GET() {
         favicon_url,
         primary_color,
         secondary_color,
+        accent_color,
         font_family,
         contact_email,
         contact_phone,

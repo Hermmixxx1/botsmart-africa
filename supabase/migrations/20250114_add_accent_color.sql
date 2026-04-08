@@ -2,5 +2,9 @@
 ALTER TABLE site_settings
 ADD COLUMN IF NOT EXISTS accent_color VARCHAR(7) NOT NULL DEFAULT '#1e3a5f';
 
+-- Set the correct default value
+ALTER TABLE site_settings
+ALTER COLUMN accent_color SET DEFAULT '#1e3a5f';
+
 -- Add comment
-COMMENT ON COLUMN site_settings.accent_color IS 'Accent color for the site theme (hex code)';
+COMMENT ON COLUMN site_settings.accent_color IS 'Accent color for the site theme (hex code) - default #1e3a5f (navy blue)';
