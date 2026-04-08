@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { cookies } from 'next/headers';
 
 export interface AuthUser {
   id: string;
@@ -9,10 +10,18 @@ export interface AuthUser {
   };
 }
 
-// Get current user from session (Client-side only)
+// Get current user from session using cookies (Server-side only)
 export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
-    const client = getSupabaseClient();
+    const cookieStore = cookies();
+    const accessToken = cookieStore.get('sb-access-token')?.value;
+
+    if (!accessToken) {
+      return null;
+    }
+
+    // Use the access token to get the user
+    const client = getSupabaseClient(accessToken);
     const { data: { user }, error } = await client.auth.getUser();
 
     if (error) {
@@ -27,24 +36,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   }
 }
 
-// Sign up new user
-export async function signUp(email: string, password: string, fullName: string) {
-  const client = getSupabaseClient();
-  const { data, error } = await client.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        full_name: fullName,
-      },
-    },
-  });
-
-  if (error) throw new Error(`Sign up failed: ${error.message}`);
-  return data;
-}
-
-// Sign in user
+// Sign in user (Server-side only)
 export async function signIn(email: string, password: string) {
   const client = getSupabaseClient();
   const { data, error } = await client.auth.signInWithPassword({
@@ -56,7 +48,7 @@ export async function signIn(email: string, password: string) {
   return data;
 }
 
-// Sign out user
+// Sign out user (Server-side only)
 export async function signOut() {
   const client = getSupabaseClient();
   const { error } = await client.auth.signOut();
@@ -64,7 +56,7 @@ export async function signOut() {
   if (error) throw new Error(`Sign out failed: ${error.message}`);
 }
 
-// Check if user is authenticated
+// Check if user is authenticated (Server-side only)
 export async function isAuthenticated(): Promise<boolean> {
   const user = await getCurrentUser();
   return !!user;

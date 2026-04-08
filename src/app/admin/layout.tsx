@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/auth-server';
 import { getUserPermissions } from '@/lib/rbac';
 import Link from 'next/link';
 import { Package, ShoppingBag, DollarSign, Users, Settings, LayoutDashboard, FileText, UserPlus } from 'lucide-react';

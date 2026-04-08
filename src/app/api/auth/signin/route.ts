@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { signIn } from '@/lib/auth';
+import { signIn } from '@/lib/auth-server';
 
 // POST /api/auth/signin - Sign in user
 export async function POST(request: NextRequest) {
@@ -15,10 +15,34 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await signIn(email, password);
-    return NextResponse.json({
+
+    // Set cookies for session persistence
+    const response = NextResponse.json({
       user: data.user,
       session: data.session,
     });
+
+    if (data.session) {
+      // Set access token cookie
+      response.cookies.set('sb-access-token', data.session.access_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: data.session.expires_in,
+        path: '/',
+      });
+
+      // Set refresh token cookie
+      response.cookies.set('sb-refresh-token', data.session.refresh_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        path: '/',
+      });
+    }
+
+    return response;
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || 'Failed to sign in' },

@@ -112,8 +112,9 @@ function getSupabaseClient(token?: string): SupabaseClient {
       timeout: 60000,
     },
     auth: {
-      autoRefreshToken: false,
-      persistSession: false,
+      autoRefreshToken: true,
+      persistSession: true,
+      storageKey: 'supabase-auth-token',
     },
   });
 }
