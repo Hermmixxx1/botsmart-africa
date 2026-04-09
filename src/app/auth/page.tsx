@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { useStore } from '@/store/useStore';
 
-// Create Supabase client inside the component to ensure environment is ready
 function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -19,23 +18,31 @@ function AuthContent() {
   const { setUser } = useStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
 
-  // Create Supabase client inside component
-  const supabase: SupabaseClient = createClient(
-    (typeof window !== 'undefined' && (window as any).__SUPABASE_URL__) || '',
-    (typeof window !== 'undefined' && (window as any).__SUPABASE_ANON_KEY__) || '',
-    {
-      auth: {
-        persistSession: true,
-        storageKey: 'supabase-auth',
-      },
+  // Initialize Supabase client after mount
+  useEffect(() => {
+    const supabaseUrl = (window as any).__SUPABASE_URL__;
+    const supabaseAnonKey = (window as any).__SUPABASE_ANON_KEY__;
+    
+    if (supabaseUrl && supabaseAnonKey) {
+      const client = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          persistSession: true,
+          storageKey: 'supabase-auth',
+        },
+      });
+      setSupabase(client);
+    } else {
+      console.error('Supabase credentials not found');
+      setError('Configuration error. Please refresh the page.');
     }
-  );
+  }, []);
 
   // Sign in form state
   const [signInData, setSignInData] = useState({
-    email: '',
-    password: '',
+    email: 'hermixxlame@gmail.com',
+    password: 'Admin123456',
   });
 
   // Sign up form state
@@ -48,6 +55,12 @@ function AuthContent() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!supabase) {
+      setError('Authentication not ready. Please wait...');
+      return;
+    }
+
     setError('');
     setLoading(true);
 
@@ -72,7 +85,7 @@ function AuthContent() {
       router.push(redirect);
       router.refresh();
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -80,6 +93,12 @@ function AuthContent() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!supabase) {
+      setError('Authentication not ready. Please wait...');
+      return;
+    }
+
     setError('');
 
     if (signUpData.password !== signUpData.confirmPassword) {
@@ -118,11 +137,22 @@ function AuthContent() {
 
       alert('Sign up successful! Please check your email to confirm your account.');
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Sign up failed');
     } finally {
       setLoading(false);
     }
   };
+
+  if (!supabase) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -173,7 +203,7 @@ function AuthContent() {
                     />
                   </div>
                   {error && (
-                    <p className="text-sm text-destructive">{error}</p>
+                    <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</p>
                   )}
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? 'Signing in...' : 'Sign In'}
@@ -234,7 +264,7 @@ function AuthContent() {
                     />
                   </div>
                   {error && (
-                    <p className="text-sm text-destructive">{error}</p>
+                    <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</p>
                   )}
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? 'Creating account...' : 'Sign Up'}
