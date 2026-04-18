@@ -16,20 +16,7 @@ export async function GET(request: NextRequest) {
 
     let query = client
       .from('products')
-      .select(`
-        *,
-        categories (
-          id,
-          name,
-          slug
-        ),
-        seller_profiles (
-          id,
-          seller_type,
-          status,
-          business_name
-        )
-      `)
+      .select('*', { count: 'exact' })
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
@@ -58,14 +45,70 @@ export async function GET(request: NextRequest) {
     const to = from + limit - 1;
     query = query.range(from, to);
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) {
+      // If relationship error, try simpler query
+      if (error.message.includes('relationship') || error.message.includes('schema cache')) {
+        const simpleQuery = client
+          .from('products')
+          .select('*', { count: 'exact' })
+          .eq('is_active', true)
+          .order('created_at', { ascending: false });
+        
+        if (categoryId) simpleQuery.eq('category_id', categoryId);
+        if (sellerId) simpleQuery.eq('seller_id', sellerId);
+        if (featured === 'true') simpleQuery.eq('is_featured', true);
+        if (search) simpleQuery.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
+        simpleQuery.range(from, to);
+        
+        const { data: simpleData, error: simpleError, count: simpleCount } = await simpleQuery;
+        
+        if (simpleError) {
+          throw new Error(`Failed to fetch products: ${simpleError.message}`);
+        }
+        
+        return NextResponse.json({ products: simpleData, page, limit, total: simpleCount });
+      }
       throw new Error(`Failed to fetch products: ${error.message}`);
     }
 
-    return NextResponse.json({ products: data, page, limit });
+    // Try to get categories separately
+    let categories: Record<string, any> = {};
+    try {
+      const { data: cats } = await client.from('categories').select('id, name, slug');
+      if (cats) {
+        cats.forEach((cat: any) => {
+          categories[cat.id] = cat;
+        });
+      }
+    } catch {
+      // Categories not available
+    }
+
+    // Try to get sellers separately
+    let sellers: Record<string, any> = {};
+    try {
+      const { data: sels } = await client.from('seller_profiles').select('id, seller_type, status, business_name');
+      if (sels) {
+        sels.forEach((sel: any) => {
+          sellers[sel.id] = sel;
+        });
+      }
+    } catch {
+      // Sellers not available
+    }
+
+    // Attach related data to products
+    const productsWithRelations = (data || []).map((product: any) => ({
+      ...product,
+      categories: categories[product.category_id] || null,
+      seller_profiles: sellers[product.seller_id] || null,
+    }));
+
+    return NextResponse.json({ products: productsWithRelations, page, limit, total: count });
   } catch (error: any) {
+    console.error('Products API error:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to fetch products' },
       { status: 500 }
