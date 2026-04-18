@@ -100,7 +100,7 @@ function AuthContent() {
 
       setUser({
         id: data.user.id,
-        email: data.user.email,
+        email: data.user.email || '',
         full_name: data.user.user_metadata?.full_name,
         avatar_url: data.user.user_metadata?.avatar_url,
       });
@@ -160,7 +160,7 @@ function AuthContent() {
 
       setUser({
         id: data.user!.id,
-        email: data.user!.email,
+        email: data.user!.email || '',
         full_name: data.user!.user_metadata?.full_name,
         avatar_url: data.user!.user_metadata?.avatar_url,
       });
