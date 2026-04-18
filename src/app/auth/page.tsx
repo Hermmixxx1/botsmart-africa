@@ -11,6 +11,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { useStore } from '@/store/useStore';
 
+// Get Supabase credentials from environment
+const getSupabaseCredentials = () => {
+  // Try window variables first (set by layout)
+  let url = (typeof window !== 'undefined' && (window as any).__SUPABASE_URL__) || '';
+  let key = (typeof window !== 'undefined' && (window as any).__SUPABASE_ANON_KEY__) || '';
+  
+  // Fallback to NEXT_PUBLIC_ environment variables
+  if (!url) {
+    url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  }
+  if (!key) {
+    key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  }
+  
+  return { url, key };
+};
+
 function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -19,23 +36,30 @@ function AuthContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
+  const [credentialsError, setCredentialsError] = useState('');
 
   // Initialize Supabase client after mount
   useEffect(() => {
-    const supabaseUrl = (window as any).__SUPABASE_URL__;
-    const supabaseAnonKey = (window as any).__SUPABASE_ANON_KEY__;
+    const { url, key } = getSupabaseCredentials();
     
-    if (supabaseUrl && supabaseAnonKey) {
-      const client = createClient(supabaseUrl, supabaseAnonKey, {
-        auth: {
-          persistSession: true,
-          storageKey: 'supabase-auth',
-        },
-      });
-      setSupabase(client);
+    if (url && key) {
+      try {
+        const client = createClient(url, key, {
+          auth: {
+            persistSession: true,
+            storageKey: 'supabase-auth',
+            autoRefreshToken: true,
+          },
+        });
+        setSupabase(client);
+        console.log('Supabase client initialized successfully');
+      } catch (err) {
+        console.error('Failed to create Supabase client:', err);
+        setCredentialsError('Failed to initialize authentication. Please refresh the page.');
+      }
     } else {
-      console.error('Supabase credentials not found');
-      setError('Configuration error. Please refresh the page.');
+      console.error('Missing Supabase credentials:', { url: !!url, key: !!key });
+      setCredentialsError('Configuration error. Supabase credentials are missing. Please refresh the page.');
     }
   }, []);
 
@@ -85,7 +109,13 @@ function AuthContent() {
       router.push(redirect);
       router.refresh();
     } catch (err: any) {
-      setError(err.message || 'Login failed');
+      console.error('Sign in error:', err);
+      // Handle "Failed to fetch" error
+      if (err.message === 'Failed to fetch' || err.message.includes('fetch')) {
+        setError('Network error. Please check your internet connection and try again.');
+      } else {
+        setError(err.message || 'Login failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -143,12 +173,28 @@ function AuthContent() {
     }
   };
 
+  if (credentialsError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Configuration Error</CardTitle>
+            <CardDescription>{credentialsError}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => window.location.reload()}>Reload Page</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (!supabase) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">Loading authentication...</p>
         </div>
       </div>
     );
@@ -159,8 +205,8 @@ function AuthContent() {
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold">Welcome to</h1>
-          <h2 className="text-4xl font-bold text-[#1e3a5f]">The Lebogang Group</h2>
-          <p className="mt-2 text-gray-600">Sign in to access your account</p>
+          <h2 className="text-4xl font-bold text-[#1e3a5f]">Botsmart Africa</h2>
+          <p className="mt-2 text-gray-600">Southern Africa&apos;s Premier Multi-Vendor Marketplace</p>
         </div>
 
         <Card>

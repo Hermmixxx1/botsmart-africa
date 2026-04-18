@@ -74,7 +74,7 @@ export default function AdminLayout({
             <div className="flex items-center space-x-8">
               <Link href="/admin" className="flex items-center space-x-2">
                 <LayoutDashboard className="h-6 w-6" />
-                <span className="font-bold">Admin</span>
+                <span className="font-bold">Botsmart Admin</span>
               </Link>
 
               <div className="hidden md:flex items-center space-x-4">

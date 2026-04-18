@@ -138,10 +138,10 @@ export default async function HomePage() {
         <div className="container mx-auto px-4">
           <div className="mx-auto max-w-3xl text-center">
             <h1 className="mb-6 text-4xl font-bold tracking-tight sm:text-6xl">
-              Welcome to ShopHub
+              Welcome to Botsmart Africa
             </h1>
             <p className="mb-8 text-xl text-muted-foreground">
-              Discover premium products at unbeatable prices. Shop with confidence knowing you're getting the best quality and service.
+              Southern Africa&apos;s trusted multi-vendor marketplace. Discover quality products from verified sellers across 12 countries, with secure payments and fast delivery.
             </p>
             <div className="flex justify-center gap-4">
               <Button size="lg" asChild>
@@ -151,8 +151,8 @@ export default async function HomePage() {
                 </Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
-                <Link href="/products?featured=true">
-                  View Featured
+                <Link href="/seller/register">
+                  Become a Seller
                 </Link>
               </Button>
             </div>
@@ -206,35 +206,51 @@ export default async function HomePage() {
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             <Card>
               <CardHeader>
-                <CardTitle>Free Shipping</CardTitle>
+                <CardTitle>Pan-African Shipping</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Enjoy free shipping on all orders over $50. Fast and reliable delivery to your doorstep.
+                  Fast delivery across 12 Southern African countries. From South Africa to Tanzania, we've got you covered.
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Secure Payment</CardTitle>
+                <CardTitle>Verified Sellers</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Your payment information is safe with us. We use industry-standard encryption.
+                  Shop with confidence from vetted sellers. Every vendor is verified to ensure authentic products and quality service.
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>24/7 Support</CardTitle>
+                <CardTitle>Local Currency Support</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Our customer support team is available around the clock to help you with any questions.
+                  Pay in your preferred currency. We support ZAR, BWP, NAD, ZWL, MZN, and 8 other regional currencies.
                 </p>
               </CardContent>
             </Card>
           </div>
+        </div>
+      </section>
+
+      {/* Seller CTA Section */}
+      <section className="bg-primary text-primary-foreground py-16">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="mb-4 text-3xl font-bold tracking-tight">Start Selling on Botsmart Africa</h2>
+          <p className="mb-8 text-lg opacity-90">
+            Join thousands of sellers reaching customers across Southern Africa. Easy setup, low fees, powerful tools.
+          </p>
+          <Button size="lg" variant="secondary" asChild>
+            <Link href="/seller/register">
+              Register as a Seller
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Link>
+          </Button>
         </div>
       </section>
     </div>

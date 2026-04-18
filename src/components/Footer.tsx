@@ -14,10 +14,10 @@ export default function Footer() {
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
               <ShoppingBag className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold">The Lebogang Group</span>
+              <span className="text-xl font-bold">Botsmart Africa</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Your trusted premium eCommerce destination across Southern Africa. Quality products, exceptional service.
+              Southern Africa&apos;s trusted multi-vendor marketplace. Connect with verified sellers, discover authentic products, and shop with confidence across 12 Southern African countries.
             </p>
             <div className="flex space-x-4">
               <Button variant="ghost" size="icon" asChild>
@@ -113,15 +113,15 @@ export default function Footer() {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-center space-x-2">
                 <Mail className="h-4 w-4" />
-                <span>contact@lebogang.com</span>
+                <span>support@botsmart.africa</span>
               </li>
               <li className="flex items-center space-x-2">
                 <Phone className="h-4 w-4" />
-                <span>+27 11 123 4567</span>
+                <span>+27 21 123 4567</span>
               </li>
               <li className="flex items-start space-x-2">
                 <MapPin className="h-4 w-4 mt-0.5" />
-                <span>Johannesburg, South Africa</span>
+                <span>Cape Town, South Africa</span>
               </li>
             </ul>
 

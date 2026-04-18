@@ -80,7 +80,7 @@ export default function SellerRegistrationPage() {
         <div className="mb-8">
           <h1 className="text-4xl font-bold tracking-tight mb-2">Become a Seller</h1>
           <p className="text-muted-foreground">
-            Start selling on ShopHub and reach thousands of customers
+            Start selling on Botsmart Africa and reach customers across 12 Southern African countries
           </p>
         </div>
 

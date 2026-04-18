@@ -6,16 +6,16 @@ import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
   title: {
-    default: 'ShopHub - Your Premium eCommerce Store',
-    template: '%s | ShopHub',
+    default: 'Botsmart Africa - Southern Africa\'s Premier E-Commerce Platform',
+    template: '%s | Botsmart Africa',
   },
-  description: 'Shop the best products at unbeatable prices. Fast shipping, secure checkout, and 24/7 support.',
-  keywords: ['ecommerce', 'online shopping', 'products', 'deals', 'shop'],
-  authors: [{ name: 'ShopHub' }],
-  generator: 'ShopHub',
+  description: 'Discover quality products from trusted sellers across Southern Africa. Shop from multiple vendors with secure payments, fast delivery, and excellent customer service in South Africa, Namibia, Botswana, Zimbabwe and more.',
+  keywords: ['ecommerce', 'online shopping', 'southern africa', 'south africa', 'botswana', 'namibia', 'zimbabwe', 'multi-vendor', ' sellers', 'shopping', 'deals', 'shop'],
+  authors: [{ name: 'Botsmart Africa' }],
+  generator: 'Botsmart Africa',
   openGraph: {
-    title: 'ShopHub - Your Premium eCommerce Store',
-    description: 'Shop the best products at unbeatable prices.',
+    title: 'Botsmart Africa - Southern Africa\'s Premier E-Commerce Platform',
+    description: 'Discover quality products from trusted sellers across Southern Africa.',
     type: 'website',
   },
   robots: {

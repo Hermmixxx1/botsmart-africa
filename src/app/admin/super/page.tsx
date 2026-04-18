@@ -108,10 +108,10 @@ export default function SuperAdminDashboardPage() {
           </Button>
           <h1 className="text-4xl font-bold tracking-tight flex items-center gap-2">
             <Shield className="h-10 w-10" />
-            Super Admin Dashboard
+            Botsmart Africa Super Admin
           </h1>
           <p className="text-muted-foreground mt-2">
-            Full control over the entire platform
+            Full control over Southern Africa&apos;s premier marketplace
           </p>
         </div>
 

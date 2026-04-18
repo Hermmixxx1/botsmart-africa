@@ -9,8 +9,8 @@ export default function AdminPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="mx-auto max-w-6xl">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold tracking-tight">Admin Dashboard</h1>
-          <p className="text-muted-foreground">Manage your store</p>
+          <h1 className="text-4xl font-bold tracking-tight">Botsmart Africa Admin</h1>
+          <p className="text-muted-foreground">Manage your Southern Africa marketplace</p>
         </div>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">

@@ -1,4 +1,4 @@
-// Regional Configuration for The Lebogang Group - Southern Africa
+// Regional Configuration for Botsmart Africa - Southern Africa Marketplace
 export interface Country {
   code: string;
   name: string;
