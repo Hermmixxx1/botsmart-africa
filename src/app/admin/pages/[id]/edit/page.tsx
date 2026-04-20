@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { getCurrentUser } from '@/lib/auth';
 import { useRouter, useParams } from 'next/navigation';
+import { useToast } from '@/lib/use-toast';
 
 interface Page {
   id: string;
@@ -25,6 +26,7 @@ interface Page {
 export default function AdminPageEditorPage() {
   const router = useRouter();
   const params = useParams();
+  const { toast } = useToast();
   const pageId = params.id as string;
   const isNew = !pageId || pageId === 'new';
 
@@ -86,12 +88,19 @@ export default function AdminPageEditorPage() {
         throw new Error(error.error || 'Failed to save page');
       }
 
-      alert('Page saved successfully!');
+      toast({
+        title: 'Page Saved',
+        description: 'Your page has been saved successfully.',
+      });
       if (isNew) {
         router.push('/admin/pages');
       }
     } catch (error: unknown) {
-      alert(error instanceof Error ? error.message : 'Failed to save page');
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to save page',
+        variant: 'destructive',
+      });
     } finally {
       setSaving(false);
     }

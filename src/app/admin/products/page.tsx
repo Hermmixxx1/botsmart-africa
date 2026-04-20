@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { getCurrentUser } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/lib/use-toast';
 
 interface Product {
   id: string;
@@ -28,6 +29,7 @@ interface Product {
 
 export default function AdminProductsPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
 
@@ -66,10 +68,18 @@ export default function AdminProductsPage() {
 
       if (!response.ok) throw new Error('Failed to delete product');
 
+      toast({
+        title: 'Product Deleted',
+        description: 'The product has been deleted successfully.',
+      });
       fetchProducts();
     } catch (error) {
       console.error('Failed to delete product:', error);
-      alert('Failed to delete product');
+      toast({
+        title: 'Error',
+        description: 'Failed to delete product',
+        variant: 'destructive',
+      });
     }
   };
 

@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getCurrentUser } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/lib/use-toast';
 
 interface SiteSettings {
   store_name: string;
@@ -37,6 +38,7 @@ interface SiteSettings {
 
 export default function AdminSettingsPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<SiteSettings>({
@@ -97,9 +99,16 @@ export default function AdminSettingsPage() {
         throw new Error('Failed to save settings');
       }
 
-      alert('Settings saved successfully!');
+      toast({
+        title: 'Settings Saved',
+        description: 'Your settings have been saved successfully.',
+      });
     } catch (error) {
-      alert('Failed to save settings');
+      toast({
+        title: 'Error',
+        description: 'Failed to save settings',
+        variant: 'destructive',
+      });
     } finally {
       setSaving(false);
     }

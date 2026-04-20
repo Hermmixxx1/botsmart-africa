@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { getCurrentUser } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/lib/use-toast';
 
 interface SellerProfile {
   id: string;
@@ -31,6 +32,7 @@ interface SellerProfile {
 
 export default function AdminSellersPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [sellers, setSellers] = useState<SellerProfile[]>([]);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
@@ -84,11 +86,18 @@ export default function AdminSellersPage() {
         throw new Error('Failed to approve seller');
       }
 
-      alert('Seller approved successfully!');
+      toast({
+        title: 'Seller Approved',
+        description: 'The seller has been approved successfully.',
+      });
       fetchSellers();
       setSelectedSeller(null);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to approve seller');
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to approve seller',
+        variant: 'destructive',
+      });
     } finally {
       setProcessing(false);
     }
@@ -98,7 +107,11 @@ export default function AdminSellersPage() {
     if (!selectedSeller) return;
 
     if (!rejectionReason.trim()) {
-      alert('Please provide a reason for rejection');
+      toast({
+        title: 'Reason Required',
+        description: 'Please provide a reason for rejection.',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -117,12 +130,19 @@ export default function AdminSellersPage() {
         throw new Error('Failed to reject seller');
       }
 
-      alert('Seller rejected successfully!');
+      toast({
+        title: 'Seller Rejected',
+        description: 'The seller application has been rejected.',
+      });
       setRejectionReason('');
       setSelectedSeller(null);
       fetchSellers();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to reject seller');
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to reject seller',
+        variant: 'destructive',
+      });
     } finally {
       setProcessing(false);
     }

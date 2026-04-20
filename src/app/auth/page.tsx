@@ -8,8 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AlertCircle, CheckCircle, Loader2, Mail } from 'lucide-react';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { useStore } from '@/store/useStore';
+import { useToast } from '@/lib/use-toast';
 
 // Get Supabase credentials from environment
 const getSupabaseCredentials = () => {
@@ -33,8 +35,10 @@ function AuthContent() {
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/admin';
   const { setUser } = useStore();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
   const [credentialsError, setCredentialsError] = useState('');
 
@@ -77,6 +81,11 @@ function AuthContent() {
     confirmPassword: '',
   });
 
+  // Password reset state
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -96,6 +105,16 @@ function AuthContent() {
 
       if (signInError) {
         throw new Error(signInError.message);
+      }
+
+      // Check if email is confirmed
+      if (!data.user?.email_confirmed_at) {
+        toast({
+          title: "Email Not Verified",
+          description: "Please check your email and click the confirmation link before signing in.",
+          variant: "destructive",
+        });
+        return;
       }
 
       setUser({
@@ -173,6 +192,47 @@ function AuthContent() {
     }
   };
 
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!resetEmail) {
+      setError('Please enter your email address');
+      return;
+    }
+
+    if (!supabase) {
+      setError('Authentication not ready. Please wait...');
+      return;
+    }
+
+    setError('');
+    setResetLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetEmail }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send reset email');
+      }
+
+      setResetSent(true);
+      toast({
+        title: "Reset Email Sent",
+        description: "Check your inbox for a password reset link",
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to send reset email');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   if (credentialsError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -216,9 +276,10 @@ function AuthContent() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="signin">Sign In</TabsTrigger>
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                <TabsTrigger value="reset">Reset Password</TabsTrigger>
               </TabsList>
 
               <TabsContent value="signin">
@@ -316,6 +377,61 @@ function AuthContent() {
                     {loading ? 'Creating account...' : 'Sign Up'}
                   </Button>
                 </form>
+              </TabsContent>
+
+              {/* Password Reset Tab */}
+              <TabsContent value="reset">
+                {resetSent ? (
+                  <div className="text-center py-6">
+                    <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Check Your Email</h3>
+                    <p className="text-muted-foreground mb-4">
+                      We've sent a password reset link to <strong>{resetEmail}</strong>
+                    </p>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Didn't receive it? Check your spam folder or try again.
+                    </p>
+                    <Button variant="outline" onClick={() => setResetSent(false)}>
+                      Try Again
+                    </Button>
+                  </div>
+                ) : (
+                  <form onSubmit={handlePasswordReset} className="space-y-4">
+                    <div className="text-center mb-4">
+                      <Mail className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">
+                        Enter your email address and we'll send you a link to reset your password.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="reset-email">Email</Label>
+                      <Input
+                        id="reset-email"
+                        type="email"
+                        placeholder="you@example.com"
+                        required
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                      />
+                    </div>
+                    {error && (
+                      <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-2 rounded">
+                        <AlertCircle className="h-4 w-4" />
+                        {error}
+                      </div>
+                    )}
+                    <Button type="submit" className="w-full" disabled={resetLoading}>
+                      {resetLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        'Send Reset Link'
+                      )}
+                    </Button>
+                  </form>
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>

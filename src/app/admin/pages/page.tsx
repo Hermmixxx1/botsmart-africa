@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { getCurrentUser } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/lib/use-toast';
 
 interface Page {
   id: string;
@@ -34,6 +35,7 @@ interface Page {
 
 export default function AdminPagesPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [pages, setPages] = useState<Page[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -81,8 +83,16 @@ export default function AdminPagesPage() {
 
       setPages(pages.filter(p => p.id !== pageId));
       setDeleteDialog({ open: false, pageId: null });
+      toast({
+        title: 'Page Deleted',
+        description: 'The page has been deleted successfully.',
+      });
     } catch (error) {
-      alert('Failed to delete page');
+      toast({
+        title: 'Error',
+        description: 'Failed to delete page',
+        variant: 'destructive',
+      });
     }
   };
 

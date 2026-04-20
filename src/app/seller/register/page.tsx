@@ -3,17 +3,21 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Building2, User, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Building2, User, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getCurrentUser } from '@/lib/auth';
+import { useToast } from '@/lib/use-toast';
 
 export default function SellerRegistrationPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [existingSeller, setExistingSeller] = useState<any>(null);
   const [error, setError] = useState('');
   const [sellerType, setSellerType] = useState<'individual' | 'business'>('individual');
 
@@ -27,14 +31,30 @@ export default function SellerRegistrationPage() {
   });
 
   useEffect(() => {
-    checkAuth();
+    checkAuthAndSellerStatus();
   }, []);
 
-  const checkAuth = async () => {
-    const user = await getCurrentUser();
-    if (!user) {
-      router.push('/auth');
-      return;
+  const checkAuthAndSellerStatus = async () => {
+    setChecking(true);
+    try {
+      const user = await getCurrentUser();
+      if (!user) {
+        router.push('/auth?redirect=/seller/register');
+        return;
+      }
+
+      // Check if user already has a seller profile
+      const response = await fetch('/api/sellers');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.seller) {
+          setExistingSeller(data.seller);
+        }
+      }
+    } catch (err) {
+      console.error('Error checking seller status:', err);
+    } finally {
+      setChecking(false);
     }
   };
 
@@ -59,13 +79,105 @@ export default function SellerRegistrationPage() {
         throw new Error(data.error || 'Registration failed');
       }
 
+      toast({
+        title: 'Registration Submitted',
+        description: 'Your seller application has been submitted.',
+      });
       router.push('/seller/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Registration failed',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
   };
+
+  if (checking) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Checking your status...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show existing seller status
+  if (existingSeller) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="mx-auto max-w-4xl">
+          <Button variant="ghost" asChild className="mb-6">
+            <Link href="/">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Home
+            </Link>
+          </Button>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle2 className="h-6 w-6 text-green-500" />
+                You're Already a Seller
+              </CardTitle>
+              <CardDescription>
+                You already have a seller account registered with us.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="text-sm font-medium mb-2">Your Seller Status</p>
+                <div className="flex items-center gap-2">
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    existingSeller.status === 'approved' 
+                      ? 'bg-green-100 text-green-700'
+                      : existingSeller.status === 'pending'
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : 'bg-red-100 text-red-700'
+                  }`}>
+                    {existingSeller.status.charAt(0).toUpperCase() + existingSeller.status.slice(1)}
+                  </span>
+                </div>
+                {existingSeller.status === 'pending' && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Your account is under review. We'll notify you once approved.
+                  </p>
+                )}
+                {existingSeller.status === 'rejected' && (
+                  <div className="mt-2">
+                    <p className="text-sm text-red-600">Reason: {existingSeller.rejection_reason || 'No reason provided'}</p>
+                    <Button 
+                      variant="outline" 
+                      className="mt-3"
+                      onClick={() => setExistingSeller(null)}
+                    >
+                      Register Again
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-4">
+                <Button asChild>
+                  <Link href="/seller/dashboard">Go to Dashboard</Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href="/">Back to Shop</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -146,11 +258,8 @@ export default function SellerRegistrationPage() {
                   </div>
                 )}
 
-                <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
-                  <h3 className="font-semibold">Bank Account Information</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Where should we send your payouts?
-                  </p>
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Bank Information</h3>
                   <div className="space-y-2">
                     <Label htmlFor="bank_account_name">Account Holder Name *</Label>
                     <Input
@@ -162,29 +271,27 @@ export default function SellerRegistrationPage() {
                       }
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="bank_account_number">Account Number *</Label>
-                      <Input
-                        id="bank_account_number"
-                        required
-                        value={formData.bank_account_number}
-                        onChange={(e) =>
-                          setFormData({ ...formData, bank_account_number: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="bank_routing_number">Routing Number *</Label>
-                      <Input
-                        id="bank_routing_number"
-                        required
-                        value={formData.bank_routing_number}
-                        onChange={(e) =>
-                          setFormData({ ...formData, bank_routing_number: e.target.value })
-                        }
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bank_account_number">Account Number *</Label>
+                    <Input
+                      id="bank_account_number"
+                      required
+                      value={formData.bank_account_number}
+                      onChange={(e) =>
+                        setFormData({ ...formData, bank_account_number: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bank_routing_number">Routing Number *</Label>
+                    <Input
+                      id="bank_routing_number"
+                      required
+                      value={formData.bank_routing_number}
+                      onChange={(e) =>
+                        setFormData({ ...formData, bank_routing_number: e.target.value })
+                      }
+                    />
                   </div>
                 </div>
 
@@ -194,7 +301,7 @@ export default function SellerRegistrationPage() {
                     <div className="space-y-1">
                       <p className="font-medium text-sm">Platform Fee & Payouts</p>
                       <p className="text-sm text-muted-foreground">
-                        ShopHub charges a 10% platform fee on each sale. The remaining 90%
+                        Botsmart Africa charges a 10% platform fee on each sale. The remaining 90%
                         will be paid out to your bank account. Business sellers require
                         admin approval before they can start selling.
                       </p>
@@ -203,7 +310,10 @@ export default function SellerRegistrationPage() {
                 </div>
 
                 {error && (
-                  <p className="text-sm text-destructive">{error}</p>
+                  <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-lg">
+                    <AlertCircle className="h-4 w-4" />
+                    <p className="text-sm">{error}</p>
+                  </div>
                 )}
 
                 <Button type="submit" size="lg" className="w-full" disabled={loading}>

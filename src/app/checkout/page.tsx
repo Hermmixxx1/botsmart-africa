@@ -10,10 +10,12 @@ import { Label } from '@/components/ui/label';
 import { useStore } from '@/store/useStore';
 import { getCurrentUser } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/lib/use-toast';
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, getCartTotal, clearCart } = useStore();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
 
@@ -52,7 +54,11 @@ export default function CheckoutPage() {
     e.preventDefault();
     // This is a simplified checkout flow
     // In a real implementation, you would integrate Stripe here
-    alert('This is a demo. In production, Stripe payment integration would be initiated here.');
+    toast({
+      title: 'Demo Mode',
+      description: 'Stripe payment integration coming soon!',
+      variant: 'destructive',
+    });
   };
 
   if (loading) {
