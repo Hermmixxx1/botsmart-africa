@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getCurrentUser } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
+import { AIProductImport } from '@/components/AIProductImport';
 
 interface DashboardStats {
   totalOrders: number;
@@ -218,6 +219,11 @@ export default function SuperAdminDashboardPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* AI Product Import */}
+        <div className="mt-8">
+          <AIProductImport />
+        </div>
 
         {/* Navigation */}
         <Card className="mt-8">
