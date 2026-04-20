@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { FetchClient, Config, LLMClient, HeaderUtils } from "coze-coding-dev-sdk";
+import { LLMClient, Config, HeaderUtils } from "coze-coding-dev-sdk";
 import { requireSuperAdmin } from "@/lib/rbac";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { z } from "zod";
@@ -30,84 +30,138 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { url, category_id, markup_percentage } = importSchema.parse(body);
 
-    // Initialize SDK clients
-    const config = new Config();
-    const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
+    // Step 1: Fetch URL content using native fetch
+    let htmlContent = "";
+    let title = "";
+    let images: string[] = [];
 
-    // Step 1: Fetch URL content
-    const fetchClient = new FetchClient(config, customHeaders);
-    const fetchResponse = await fetchClient.fetch(url);
+    try {
+      const fetchResponse = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Accept": "text/html,application/xhtml+xml",
+        },
+      });
 
-    if (fetchResponse.status_code !== 0) {
+      if (!fetchResponse.ok) {
+        return NextResponse.json(
+          { error: `Failed to fetch URL: ${fetchResponse.status} ${fetchResponse.statusText}` },
+          { status: 400 }
+        );
+      }
+
+      htmlContent = await fetchResponse.text();
+
+      // Extract title
+      const titleMatch = htmlContent.match(/<title[^>]*>([^<]+)<\/title>/i);
+      title = titleMatch ? titleMatch[1].trim() : "Unknown";
+
+      // Extract meta description
+      const metaDescMatch = htmlContent.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
+        htmlContent.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
+      const metaDescription = metaDescMatch ? metaDescMatch[1].trim() : "";
+
+      // Extract main image (og:image)
+      const ogImageMatch = htmlContent.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+        htmlContent.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+      const ogImage = ogImageMatch ? ogImageMatch[1] : "";
+
+      // Extract additional images from img tags
+      const imgMatches = htmlContent.matchAll(/<img[^>]+src=["']([^"']+)["']/gi);
+      const imgUrls: string[] = [];
+      for (const match of imgMatches) {
+        const imgUrl = match[1];
+        // Filter out small icons and tracking pixels
+        if (imgUrl && !imgUrl.includes("icon") && !imgUrl.includes("pixel") && imgUrl.startsWith("http")) {
+          imgUrls.push(imgUrl);
+        }
+      }
+
+      // Deduplicate and prioritize
+      images = [...new Set([ogImage, ...imgUrls])].filter(Boolean);
+
+    } catch (fetchError) {
+      console.error("Fetch error:", fetchError);
       return NextResponse.json(
-        { error: `Failed to fetch URL: ${fetchResponse.status_message}` },
+        { error: "Failed to fetch the product URL" },
         { status: 400 }
       );
     }
 
-    // Extract text content from fetch response
-    const textContent = fetchResponse.content
-      .filter((item) => item.type === "text")
-      .map((item) => item.text)
-      .join("\n")
-      .substring(0, 15000); // Limit content size
-
-    // Extract images
-    const images = fetchResponse.content
-      .filter((item) => item.type === "image")
-      .map((item) => item.image?.display_url || item.image?.image_url)
-      .filter((url): url is string => !!url);
-
     // Step 2: Use LLM to extract product information
+    const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
+    const config = new Config();
     const llmClient = new LLMClient(config, customHeaders);
 
     const extractionPrompt = `You are an expert e-commerce product analyzer. Analyze the following webpage content and extract structured product information.
 
 Extract the following fields:
-- name: Product name/title (be specific and descriptive)
-- description: Detailed product description (at least 2-3 sentences)
-- price: The product price as a number (only the numeric value, no currency symbols)
-- image_url: The main/best product image URL (prefer high-resolution images)
+- name: Product name/title (be specific and descriptive, 5-100 characters)
+- description: Detailed product description (at least 2-3 sentences, extract from the content)
+- price: The product price as a number only (e.g., 99.99, not "$99.99" or "R99.99")
+- image_url: The main product image URL (prefer the first/highest quality image from the provided images list)
 
-IMPORTANT:
-- Only extract REAL product information from the content
-- Price must be a number only (e.g., 99.99, not "$99.99")
-- If price is not found, set price to 0
+Provided Images (in order of priority):
+${images.slice(0, 10).map((img, i) => `${i + 1}. ${img}`).join("\n")}
+
+IMPORTANT RULES:
+- price MUST be a number only (no currency symbols, no "R", no commas)
+- If price is not found in the content, set price to 0
 - If name is not found, set name to "Imported Product"
-- If description is not found, set description to "No description available"
-- Return ONLY valid JSON, no markdown or explanations
+- If description is not found, use this fallback: "Quality product imported from external source."
+- For image_url, use the first valid image URL from the list above, or any product image you find
+- Return ONLY valid JSON object with these exact fields: name, description, price, image_url
+- Do NOT include any markdown, explanations, or additional text
 
-Webpage Title: ${fetchResponse.title || "Unknown"}
-Content to analyze:
-${textContent}`;
+Webpage Title: ${title}
+Content to analyze (first 8000 chars):
+${htmlContent.substring(0, 8000)}`;
 
-    const llmResponse = await llmClient.invoke(
-      [
-        {
-          role: "user",
-          content: extractionPrompt,
-        },
-      ],
-      {
-        model: "doubao-seed-2-0-lite-260215",
-        temperature: 0.3,
-      }
-    );
-
-    // Parse LLM response
     let extractedProduct: ExtractedProduct;
+
     try {
-      // Try to extract JSON from the response
-      const jsonMatch = llmResponse.content.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error("No JSON found in response");
+      const llmResponse = await llmClient.invoke(
+        [
+          {
+            role: "user",
+            content: extractionPrompt,
+          },
+        ],
+        {
+          model: "doubao-seed-2-0-lite-260215",
+          temperature: 0.3,
+        }
+      );
+
+      // Parse LLM response
+      try {
+        const jsonMatch = llmResponse.content.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          throw new Error("No JSON found in LLM response");
+        }
+        extractedProduct = JSON.parse(jsonMatch[0]);
+
+        // Validate required fields
+        if (!extractedProduct.name) extractedProduct.name = "Imported Product";
+        if (!extractedProduct.price || isNaN(extractedProduct.price)) extractedProduct.price = 0;
+        if (!extractedProduct.description) extractedProduct.description = "Quality product imported from external source.";
+        if (!extractedProduct.image_url && images.length > 0) {
+          extractedProduct.image_url = images[0];
+        }
+
+      } catch (parseError) {
+        console.error("Failed to parse LLM response:", llmResponse.content);
+        return NextResponse.json(
+          { error: "Failed to extract product information from the page. Please try a different URL." },
+          { status: 422 }
+        );
       }
-      extractedProduct = JSON.parse(jsonMatch[0]);
-    } catch (parseError) {
-      console.error("Failed to parse LLM response:", llmResponse.content);
+
+    } catch (llmError: any) {
+      console.error("LLM error:", llmError);
       return NextResponse.json(
-        { error: "Failed to extract product information from the page" },
-        { status: 422 }
+        { error: `AI extraction failed: ${llmError.message || "Please try again"}` },
+        { status: 500 }
       );
     }
 
@@ -136,8 +190,8 @@ ${textContent}`;
         description: extractedProduct.description,
         price: finalPrice.toFixed(2),
         compare_price: comparePrice?.toFixed(2) || null,
-        image_url: extractedProduct.image_url || images[0] || "",
-        images: images.length > 0 ? images : [],
+        image_url: extractedProduct.image_url || "",
+        images: images.length > 0 ? images.slice(0, 10) : [],
         category_id: category_id || null,
         seller_id: null, // Admin imported products have no seller
         stock: 100, // Default stock
@@ -170,6 +224,7 @@ ${textContent}`;
       },
       message: `Product imported successfully with ${markup_percentage}% markup`,
     });
+
   } catch (error) {
     console.error("Import error:", error);
 
