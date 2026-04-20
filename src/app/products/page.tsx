@@ -17,7 +17,6 @@ interface Product {
   slug: string;
   description: string;
   price: string;
-  compare_price: string | null;
   image_url: string;
   stock: number;
   is_featured: boolean;
@@ -177,12 +176,7 @@ function ProductsContent() {
                     </div>
                   </Link>
                   <CardHeader className="p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <CardTitle className="line-clamp-2 text-lg">{product.name}</CardTitle>
-                      {product.compare_price && (
-                        <Badge variant="destructive">Sale</Badge>
-                      )}
-                    </div>
+                    <CardTitle className="line-clamp-2 text-lg">{product.name}</CardTitle>
                     {product.categories && (
                       <Badge variant="secondary" className="w-fit">
                         {product.categories.name}
@@ -194,11 +188,6 @@ function ProductsContent() {
                       <span className="text-2xl font-bold">
                         ${parseFloat(product.price).toFixed(2)}
                       </span>
-                      {product.compare_price && (
-                        <span className="text-sm text-muted-foreground line-through">
-                          ${parseFloat(product.compare_price).toFixed(2)}
-                        </span>
-                      )}
                     </div>
                     {product.stock < 10 && product.stock > 0 && (
                       <Badge variant="secondary" className="mt-2">

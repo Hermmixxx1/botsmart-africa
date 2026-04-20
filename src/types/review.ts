@@ -32,6 +32,5 @@ export interface Wishlist {
     slug: string;
     price: string;
     image_url: string;
-    compare_price?: string;
   };
 }

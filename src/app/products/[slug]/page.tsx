@@ -130,14 +130,6 @@ export default function ProductDetailPage() {
     );
   }
 
-  const discount = product.compare_price
-    ? Math.round(
-        ((parseFloat(product.compare_price) - parseFloat(product.price)) /
-          parseFloat(product.compare_price)) *
-          100
-      )
-    : 0;
-
   return (
     <div className="container mx-auto px-4 py-8">
       <Button variant="ghost" asChild className="mb-6">
@@ -206,14 +198,6 @@ export default function ProductDetailPage() {
               <span className="text-4xl font-bold">
                 ${parseFloat(product.price).toFixed(2)}
               </span>
-              {product.compare_price && (
-                <>
-                  <span className="text-xl text-muted-foreground line-through">
-                    ${parseFloat(product.compare_price).toFixed(2)}
-                  </span>
-                  <Badge variant="destructive">{discount}% OFF</Badge>
-                </>
-              )}
             </div>
 
             <div className="rounded-lg bg-muted p-4">

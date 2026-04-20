@@ -149,11 +149,6 @@ export default function WishlistPage() {
                   <span className="font-bold text-lg">
                     ${parseFloat(product.price).toFixed(2)}
                   </span>
-                  {product.compare_price && (
-                    <span className="text-sm text-muted-foreground line-through">
-                      ${parseFloat(product.compare_price).toFixed(2)}
-                    </span>
-                  )}
                 </div>
               </CardContent>
               <CardFooter className="p-4 pt-0">

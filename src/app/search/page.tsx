@@ -24,7 +24,6 @@ interface SearchProduct {
   name: string;
   slug: string;
   price: string;
-  compare_price?: string;
   image_url: string;
   stock: number;
   categories?: {
@@ -240,11 +239,6 @@ function SearchResults() {
                     <span className="font-bold text-lg">
                       ${parseFloat(product.price).toFixed(2)}
                     </span>
-                    {product.compare_price && (
-                      <span className="text-sm text-muted-foreground line-through">
-                        ${parseFloat(product.compare_price).toFixed(2)}
-                      </span>
-                    )}
                   </div>
                 </CardContent>
               </Card>

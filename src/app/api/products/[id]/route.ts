@@ -10,10 +10,23 @@ export async function GET(
     const client = getSupabaseClient();
     const { id } = await params;
 
+    // Public API - exclude compare_price (markup) from response
     const { data, error } = await client
       .from('products')
       .select(`
-        *,
+        id,
+        name,
+        slug,
+        description,
+        price,
+        image_url,
+        images,
+        stock,
+        is_featured,
+        category_id,
+        seller_id,
+        created_at,
+        updated_at,
         categories (
           id,
           name,

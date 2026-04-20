@@ -14,9 +14,10 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '12');
 
+    // Public API - exclude compare_price (markup) from response
     let query = client
       .from('products')
-      .select('*', { count: 'exact' })
+      .select('id, name, slug, description, price, image_url, stock, is_featured, category_id, seller_id, created_at, updated_at', { count: 'exact' })
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
       if (error.message.includes('relationship') || error.message.includes('schema cache')) {
         const simpleQuery = client
           .from('products')
-          .select('*', { count: 'exact' })
+          .select('id, name, slug, description, price, image_url, stock, is_featured, category_id, seller_id, created_at, updated_at', { count: 'exact' })
           .eq('is_active', true)
           .order('created_at', { ascending: false });
         

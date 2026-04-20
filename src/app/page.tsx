@@ -40,12 +40,7 @@ function ProductCard({ product }: { product: any }) {
         </div>
       </Link>
       <CardHeader className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="line-clamp-2 text-lg">{product.name}</CardTitle>
-          {product.compare_price && (
-            <Badge variant="destructive">Sale</Badge>
-          )}
-        </div>
+        <CardTitle className="line-clamp-2 text-lg">{product.name}</CardTitle>
         <div className="flex items-center gap-2">
           <div className="flex">
             {[...Array(5)].map((_, i) => (
@@ -61,11 +56,6 @@ function ProductCard({ product }: { product: any }) {
       <CardContent className="p-4 pt-0">
         <div className="flex items-baseline gap-2">
           <span className="text-2xl font-bold">${parseFloat(product.price).toFixed(2)}</span>
-          {product.compare_price && (
-            <span className="text-sm text-muted-foreground line-through">
-              ${parseFloat(product.compare_price).toFixed(2)}
-            </span>
-          )}
         </div>
         {product.stock < 10 && product.stock > 0 && (
           <Badge variant="secondary" className="mt-2">
