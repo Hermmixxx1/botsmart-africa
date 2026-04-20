@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Package, ShoppingBag, DollarSign, Users, Settings, LayoutDashboard, FileText, UserPlus, LogOut } from 'lucide-react';
+import { Package, ShoppingBag, DollarSign, Users, Settings, LayoutDashboard, FileText, UserPlus, LogOut, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getCurrentUser } from '@/lib/auth';
@@ -117,6 +117,12 @@ export default function AdminLayout({
                   <Button variant="ghost" size="sm">
                     <FileText className="mr-2 h-4 w-4" />
                     Pages
+                  </Button>
+                </Link>
+                <Link href="/admin/reviews">
+                  <Button variant="ghost" size="sm">
+                    <Star className="mr-2 h-4 w-4" />
+                    Reviews
                   </Button>
                 </Link>
               </div>
