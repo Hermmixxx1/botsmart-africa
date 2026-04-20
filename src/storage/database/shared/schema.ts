@@ -282,6 +282,45 @@ export const auditLogs = pgTable(
   ]
 );
 
+// Product Reviews table
+export const reviews = pgTable(
+  "reviews",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+    product_id: varchar("product_id", { length: 36 }).notNull().references(() => products.id, { onDelete: "cascade" }),
+    user_id: varchar("user_id", { length: 36 }).notNull(),
+    rating: integer("rating").notNull(), // 1-5 stars
+    title: varchar("title", { length: 255 }),
+    comment: text("comment"),
+    is_verified_purchase: boolean("is_verified_purchase").default(false).notNull(),
+    is_approved: boolean("is_approved").default(true).notNull(),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("reviews_product_id_idx").on(table.product_id),
+    index("reviews_user_id_idx").on(table.user_id),
+    index("reviews_rating_idx").on(table.rating),
+    index("reviews_is_approved_idx").on(table.is_approved),
+  ]
+);
+
+// Wishlists table
+export const wishlists = pgTable(
+  "wishlists",
+  {
+    id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+    user_id: varchar("user_id", { length: 36 }).notNull(),
+    product_id: varchar("product_id", { length: 36 }).notNull().references(() => products.id, { onDelete: "cascade" }),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("wishlists_user_id_idx").on(table.user_id),
+    index("wishlists_product_id_idx").on(table.product_id),
+    index("wishlists_user_product_idx").on(table.user_id, table.product_id),
+  ]
+);
+
 // Zod schemas for validation
 const { createInsertSchema: createCoercedInsertSchema } = createSchemaFactory({ coerce: { date: true } });
 
@@ -412,6 +451,21 @@ export const insertCartItemSchema = createCoercedInsertSchema(cartItems).pick({
   quantity: true,
 });
 
+export const insertReviewSchema = createCoercedInsertSchema(reviews).pick({
+  product_id: true,
+  user_id: true,
+  rating: true,
+  title: true,
+  comment: true,
+  is_verified_purchase: true,
+  is_approved: true,
+});
+
+export const insertWishlistSchema = createCoercedInsertSchema(wishlists).pick({
+  user_id: true,
+  product_id: true,
+});
+
 // Type exports
 export type HealthCheck = typeof healthCheck.$inferSelect;
 export type AdminRole = typeof adminRoles.$inferSelect;
@@ -425,6 +479,8 @@ export type Address = typeof addresses.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type CartItem = typeof cartItems.$inferSelect;
+export type Review = typeof reviews.$inferSelect;
+export type Wishlist = typeof wishlists.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
 
 export type InsertAdminRole = z.infer<typeof insertAdminRoleSchema>;
@@ -438,3 +494,5 @@ export type InsertAddress = z.infer<typeof insertAddressSchema>;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
+export type InsertReview = z.infer<typeof insertReviewSchema>;
+export type InsertWishlist = z.infer<typeof insertWishlistSchema>;

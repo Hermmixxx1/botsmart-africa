@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingBag, User, Menu, X, LogOut } from 'lucide-react';
+import { ShoppingBag, User, Menu, X, LogOut, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useStore } from '@/store/useStore';
 import { useEffect, useState } from 'react';
 import { getCurrentUser, signOut } from '@/lib/auth';
+import { SearchBar } from '@/components/SearchBar';
 
 export default function Navigation() {
   const { cart, user, setUser, getCartCount } = useStore();
@@ -65,8 +66,18 @@ export default function Navigation() {
             )}
           </div>
 
-          {/* Right side: Cart & User */}
+          {/* Right side: Cart, Wishlist, Search & User */}
           <div className="hidden md:flex items-center space-x-4">
+            <SearchBar className="w-64" placeholder="Search products..." />
+            
+            {user && (
+              <Link href="/wishlist">
+                <Button variant="ghost" size="icon" title="Wishlist">
+                  <Heart className="h-5 w-5" />
+                </Button>
+              </Link>
+            )}
+
             <Link href="/cart">
               <Button variant="ghost" size="icon" className="relative">
                 <ShoppingBag className="h-5 w-5" />
