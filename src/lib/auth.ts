@@ -1,34 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-interface SupabaseConfig {
-  supabaseUrl: string;
-  supabaseAnonKey: string;
-}
-
-// Cache for config
-let cachedConfig: SupabaseConfig | null = null;
-
-async function fetchConfig(): Promise<SupabaseConfig | null> {
-  if (cachedConfig) return cachedConfig;
-  
-  try {
-    const response = await fetch('/api/config', {
-      cache: 'no-store',
-    });
-    if (response.ok) {
-      const data = await response.json();
-      cachedConfig = {
-        supabaseUrl: data.supabaseUrl,
-        supabaseAnonKey: data.supabaseAnonKey,
-      };
-      return cachedConfig;
-    }
-  } catch (error) {
-    console.error('Failed to fetch config:', error);
-  }
-  return null;
-}
-
 export interface AuthUser {
   id: string;
   email: string;
@@ -38,10 +9,36 @@ export interface AuthUser {
   };
 }
 
-// Get current user from session (Client-side)
+// Get or create Supabase client (works on both server and client)
+let clientInstance: SupabaseClient | null = null;
+
+function getSupabaseClient(): SupabaseClient | null {
+  if (clientInstance) return clientInstance;
+
+  // Use environment variables directly
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.COZE_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.COZE_SUPABASE_ANON_KEY;
+
+  if (!url || !key) {
+    console.error('Missing Supabase environment variables');
+    return null;
+  }
+
+  clientInstance = createClient(url, key, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      storageKey: 'supabase-auth',
+    },
+  });
+
+  return clientInstance;
+}
+
+// Get current user from session
 export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
-    const client = await getClient();
+    const client = getSupabaseClient();
     
     if (!client) {
       return null;
@@ -58,14 +55,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       return null;
     }
 
-    const { data: { user }, error: userError } = await client.auth.getUser();
-
-    if (userError) {
-      console.error('Failed to get user:', userError);
-      return null;
-    }
-
-    return user as AuthUser | null;
+    return session.user as AuthUser;
   } catch (error) {
     console.error('Error getting current user:', error);
     return null;
@@ -74,7 +64,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
 // Sign up new user
 export async function signUp(email: string, password: string, fullName: string) {
-  const client = await getClient();
+  const client = getSupabaseClient();
   
   if (!client) {
     throw new Error('Authentication not ready. Please refresh the page.');
@@ -96,7 +86,7 @@ export async function signUp(email: string, password: string, fullName: string) 
 
 // Sign in user
 export async function signIn(email: string, password: string) {
-  const client = await getClient();
+  const client = getSupabaseClient();
   
   if (!client) {
     throw new Error('Authentication not ready. Please refresh the page.');
@@ -113,7 +103,7 @@ export async function signIn(email: string, password: string) {
 
 // Sign out user
 export async function signOut() {
-  const client = await getClient();
+  const client = getSupabaseClient();
   
   if (!client) {
     return;
@@ -124,52 +114,9 @@ export async function signOut() {
   if (error) throw new Error(`Sign out failed: ${error.message}`);
 }
 
-// Get or create Supabase client
-let clientPromise: Promise<SupabaseClient | null> | null = null;
-
-async function getClient(): Promise<SupabaseClient | null> {
-  // For server-side, create client directly with env vars
-  if (typeof window === 'undefined') {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.COZE_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.COZE_SUPABASE_ANON_KEY;
-    
-    if (!url || !key) {
-      return null;
-    }
-    
-    return createClient(url, key, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-      },
-    });
-  }
-  
-  // For client-side, use config endpoint
-  if (!clientPromise) {
-    clientPromise = (async () => {
-      const config = await fetchConfig();
-      
-      if (!config || !config.supabaseUrl || !config.supabaseAnonKey) {
-        console.error('Missing Supabase config');
-        return null;
-      }
-      
-      return createClient(config.supabaseUrl, config.supabaseAnonKey, {
-        auth: {
-          autoRefreshToken: true,
-          persistSession: true,
-        },
-      });
-    })();
-  }
-  
-  return clientPromise;
-}
-
 // Get permissions for a user
 export async function getUserPermissions(userId: string) {
-  const client = await getClient();
+  const client = getSupabaseClient();
   
   if (!client) {
     return null;
@@ -195,10 +142,4 @@ export async function getUserPermissions(userId: string) {
     console.error('Error getting permissions:', error);
     return null;
   }
-}
-
-// Check if user is admin
-export async function isAdmin(userId: string): Promise<boolean> {
-  const permissions = await getUserPermissions(userId);
-  return permissions?.isAdmin || false;
 }
