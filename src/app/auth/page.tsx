@@ -37,22 +37,50 @@ function AuthContent() {
 
   // Initialize Supabase on mount
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    
-    if (url && key) {
-      setSupabaseUrl(url);
-      setSupabaseAnonKey(key);
-      const client = createClient(url, key, {
-        auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-        },
-      });
-      setSupabase(client);
-    } else {
-      setCredentialsError('Supabase credentials not configured');
+    async function initSupabase() {
+      try {
+        // First try direct env vars
+        let url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        let key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        
+        // If not available, try fetching from config API
+        if (!url || !key) {
+          try {
+            const response = await fetch('/api/config', { 
+              credentials: 'include',
+              cache: 'no-store'
+            });
+            if (response.ok) {
+              const config = await response.json();
+              url = url || config.supabaseUrl;
+              key = key || config.supabaseAnonKey;
+            }
+          } catch (e) {
+            console.log('Config API not available');
+          }
+        }
+        
+        if (url && key) {
+          setSupabaseUrl(url);
+          setSupabaseAnonKey(key);
+          const client = createClient(url, key, {
+            auth: {
+              persistSession: true,
+              autoRefreshToken: true,
+            },
+          });
+          setSupabase(client);
+        } else {
+          console.error('Missing Supabase credentials');
+          setCredentialsError('Supabase credentials not configured. Please check environment variables.');
+        }
+      } catch (err) {
+        console.error('Failed to init Supabase:', err);
+        setCredentialsError('Failed to initialize authentication');
+      }
     }
+    
+    initSupabase();
   }, []);
 
   // Check for email confirmation
