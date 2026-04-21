@@ -188,7 +188,19 @@ function AuthContent() {
         avatar_url: data.user.user_metadata?.avatar_url,
       });
 
-      router.push(redirect);
+      // Check if user is admin and redirect accordingly
+      try {
+        const adminCheck = await fetch('/api/auth/check-admin');
+        const adminData = await adminCheck.json();
+        
+        if (adminData.isAdmin) {
+          router.push('/admin');
+        } else {
+          router.push(redirect);
+        }
+      } catch {
+        router.push(redirect);
+      }
       router.refresh();
     } catch (err: any) {
       setError(err.message || 'Login failed');
