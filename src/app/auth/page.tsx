@@ -8,18 +8,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, CheckCircle, Loader2, Mail } from 'lucide-react';
+import { AlertCircle, CheckCircle, Loader2, Mail, Phone, ArrowLeft } from 'lucide-react';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { useStore } from '@/store/useStore';
 import { useToast } from '@/lib/use-toast';
 
 // Get Supabase credentials from environment
 const getSupabaseCredentials = () => {
-  // Try window variables first (set by layout)
   let url = (typeof window !== 'undefined' && (window as any).__SUPABASE_URL__) || '';
   let key = (typeof window !== 'undefined' && (window as any).__SUPABASE_ANON_KEY__) || '';
   
-  // Fallback to NEXT_PUBLIC_ environment variables
   if (!url) {
     url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   }
@@ -34,13 +32,18 @@ function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/admin';
+  const type = searchParams.get('type'); // 'signup' or 'recovery' or 'email_change' or 'invite'
   const { setUser } = useStore();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
   const [credentialsError, setCredentialsError] = useState('');
+  const [emailNotVerified, setEmailNotVerified] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [resendLoading, setResendLoading] = useState(false);
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
 
   // Initialize Supabase client after mount
   useEffect(() => {
@@ -56,21 +59,93 @@ function AuthContent() {
           },
         });
         setSupabase(client);
-        console.log('Supabase client initialized successfully');
       } catch (err) {
         console.error('Failed to create Supabase client:', err);
         setCredentialsError('Failed to initialize authentication. Please refresh the page.');
       }
     } else {
-      console.error('Missing Supabase credentials:', { url: !!url, key: !!key });
-      setCredentialsError('Configuration error. Supabase credentials are missing. Please refresh the page.');
+      setCredentialsError('Configuration error. Supabase credentials are missing.');
     }
   }, []);
 
+  // Check if user is coming from an email confirmation link
+  useEffect(() => {
+    if (supabase && type) {
+      handleEmailCallback(type);
+    }
+  }, [supabase, type]);
+
+  const handleEmailCallback = async (tokenType: string) => {
+    setVerificationLoading(true);
+    try {
+      const { data, error } = await supabase!.auth.getSession();
+      
+      if (error) {
+        throw error;
+      }
+
+      // Check if email is now confirmed
+      if (data.session?.user?.email_confirmed_at) {
+        setEmailVerified(true);
+        toast({
+          title: "Email Verified!",
+          description: "Your email has been verified successfully.",
+        });
+        // Auto sign in after verification
+        setUser({
+          id: data.session.user.id,
+          email: data.session.user.email || '',
+          full_name: data.session.user.user_metadata?.full_name,
+          avatar_url: data.session.user.user_metadata?.avatar_url,
+        });
+        setTimeout(() => {
+          router.push(redirect);
+          router.refresh();
+        }, 2000);
+      }
+    } catch (err: any) {
+      console.error('Email verification error:', err);
+      toast({
+        title: "Verification Failed",
+        description: err.message || "Could not verify email. Please try signing in.",
+        variant: "destructive",
+      });
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!supabase || !pendingEmail) return;
+    
+    setResendLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: pendingEmail,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Email Sent",
+        description: "A new confirmation email has been sent.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to resend confirmation email.",
+        variant: "destructive",
+      });
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   // Sign in form state
   const [signInData, setSignInData] = useState({
-    email: 'hermixxlame@gmail.com',
-    password: 'Admin123456',
+    email: '',
+    password: '',
   });
 
   // Sign up form state
@@ -78,6 +153,7 @@ function AuthContent() {
     email: '',
     password: '',
     fullName: '',
+    phone: '',
     confirmPassword: '',
   });
 
@@ -104,11 +180,13 @@ function AuthContent() {
       });
 
       if (signInError) {
-        throw new Error(signInError.message);
+        throw Error(signInError.message);
       }
 
       // Check if email is confirmed
       if (!data.user?.email_confirmed_at) {
+        setEmailNotVerified(true);
+        setPendingEmail(signInData.email);
         toast({
           title: "Email Not Verified",
           description: "Please check your email and click the confirmation link before signing in.",
@@ -124,12 +202,10 @@ function AuthContent() {
         avatar_url: data.user.user_metadata?.avatar_url,
       });
 
-      // Redirect to the specified URL
       router.push(redirect);
       router.refresh();
     } catch (err: any) {
       console.error('Sign in error:', err);
-      // Handle "Failed to fetch" error
       if (err.message === 'Failed to fetch' || err.message.includes('fetch')) {
         setError('Network error. Please check your internet connection and try again.');
       } else {
@@ -169,12 +245,13 @@ function AuthContent() {
         options: {
           data: {
             full_name: signUpData.fullName,
+            phone: signUpData.phone,
           },
         },
       });
 
       if (signUpError) {
-        throw new Error(signUpError.message);
+        throw Error(signUpError.message);
       }
 
       setUser({
@@ -184,7 +261,18 @@ function AuthContent() {
         avatar_url: data.user!.user_metadata?.avatar_url,
       });
 
-      alert('Sign up successful! Please check your email to confirm your account.');
+      // Check if email confirmation is needed
+      if (!data.user?.email_confirmed_at) {
+        setEmailNotVerified(true);
+        setPendingEmail(signUpData.email);
+        toast({
+          title: "Account Created!",
+          description: "Please check your email to confirm your account.",
+        });
+      } else {
+        router.push(redirect);
+        router.refresh();
+      }
     } catch (err: any) {
       setError(err.message || 'Sign up failed');
     } finally {
@@ -218,7 +306,7 @@ function AuthContent() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to send reset email');
+        throw Error(data.error || 'Failed to send reset email');
       }
 
       setResetSent(true);
@@ -249,6 +337,38 @@ function AuthContent() {
     );
   }
 
+  if (verificationLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
+              <h3 className="text-lg font-semibold mb-2">Verifying...</h3>
+              <p className="text-muted-foreground">Please wait while we verify your email.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (emailVerified) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Email Verified!</h3>
+              <p className="text-muted-foreground mb-4">Redirecting you to the app...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (!supabase) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -269,13 +389,60 @@ function AuthContent() {
           <p className="mt-2 text-gray-600">Southern Africa&apos;s Premier Multi-Vendor Marketplace</p>
         </div>
 
+        {/* Email Verification Notice */}
+        {emailNotVerified && (
+          <Card className="border-yellow-500 bg-yellow-50">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-yellow-800">Email Verification Required</h3>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    We&apos;ve sent a confirmation email to <strong>{pendingEmail}</strong>.
+                    Please check your inbox and click the link to verify your account.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleResendConfirmation}
+                      disabled={resendLoading}
+                    >
+                      {resendLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        'Resend Email'
+                      )}
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => {
+                        setEmailNotVerified(false);
+                        setPendingEmail('');
+                        setError('');
+                      }}
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Back to Login
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle>Account</CardTitle>
             <CardDescription>Sign in to your account or create a new one</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="signin" className="w-full">
+            <Tabs defaultValue={type || 'signin'} className="w-full">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="signin">Sign In</TabsTrigger>
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -347,6 +514,25 @@ function AuthContent() {
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="signup-phone">Phone Number (Optional)</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="signup-phone"
+                        type="tel"
+                        placeholder="+27 XX XXX XXXX"
+                        className="pl-10"
+                        value={signUpData.phone}
+                        onChange={(e) =>
+                          setSignUpData({ ...signUpData, phone: e.target.value })
+                        }
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Required for phone verification
+                    </p>
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
                     <Input
                       id="signup-password"
@@ -386,10 +572,10 @@ function AuthContent() {
                     <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold mb-2">Check Your Email</h3>
                     <p className="text-muted-foreground mb-4">
-                      We've sent a password reset link to <strong>{resetEmail}</strong>
+                      We&apos;ve sent a password reset link to <strong>{resetEmail}</strong>
                     </p>
                     <p className="text-sm text-muted-foreground mb-6">
-                      Didn't receive it? Check your spam folder or try again.
+                      Didn&apos;t receive it? Check your spam folder or try again.
                     </p>
                     <Button variant="outline" onClick={() => setResetSent(false)}>
                       Try Again
@@ -400,7 +586,7 @@ function AuthContent() {
                     <div className="text-center mb-4">
                       <Mail className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                       <p className="text-sm text-muted-foreground">
-                        Enter your email address and we'll send you a link to reset your password.
+                        Enter your email address and we&apos;ll send you a link to reset your password.
                       </p>
                     </div>
                     <div className="space-y-2">
@@ -449,7 +635,11 @@ function AuthContent() {
 
 export default function AuthPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+      </div>
+    }>
       <AuthContent />
     </Suspense>
   );
