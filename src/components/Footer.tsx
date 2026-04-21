@@ -80,7 +80,7 @@ export default function Footer() {
             <h3 className="mb-4 text-lg font-semibold">Customer Service</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/page/contact" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                <Link href="/contact-us" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                   Contact Us
                 </Link>
               </li>
