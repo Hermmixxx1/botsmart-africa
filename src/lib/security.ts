@@ -280,10 +280,10 @@ export function getSecurityHeaders() {
     'Content-Security-Policy':
       "default-src 'self'; " +
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com; " +
-      "style-src 'self' 'unsafe-inline'; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
       "img-src 'self' data: https:; " +
-      "font-src 'self' data:; " +
-      `connect-src 'self' https://api.stripe.com https://*.supabase.co ${supabaseUrl}; ` +
+      "font-src 'self' data: https://fonts.gstatic.com; " +
+      `connect-src 'self' https://api.exchangerate-api.com https://api.stripe.com https://*.supabase.co ${supabaseUrl}; ` +
       "frame-ancestors 'none';",
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',

@@ -2,12 +2,11 @@
  * Check Admin Status API
  * GET /api/auth/check-admin
  * 
- * Uses server-side session from cookies (via @supabase/ssr)
+ * Accepts JWT token from Authorization header
  */
 
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Helper to get env vars
 function getEnv() {
@@ -22,7 +21,38 @@ function getEnv() {
   };
 }
 
-export async function GET() {
+// Get admin client with optional JWT token
+function getAdminClient(jwtToken?: string): SupabaseClient | null {
+  const { url, serviceKey, anonKey } = getEnv();
+  
+  if (!url || !anonKey) {
+    return null;
+  }
+
+  // Use service role key if available (for checking admin table)
+  // Otherwise use anon key with JWT
+  const key = serviceKey || anonKey;
+  
+  const client = createClient(url, key, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
+  // If we have a JWT, set it
+  if (jwtToken) {
+    // Set the session with the provided JWT
+    client.auth.setSession({
+      access_token: jwtToken,
+      refresh_token: '',
+    });
+  }
+
+  return client;
+}
+
+export async function GET(request: Request) {
   try {
     const { url, anonKey, serviceKey } = getEnv();
     
@@ -33,21 +63,21 @@ export async function GET() {
       }, { status: 500 });
     }
 
-    // Get cookies from the request
-    const cookieStore = await cookies();
-    const cookieHeader = cookieStore.toString();
+    // Get JWT token from Authorization header
+    const authHeader = request.headers.get('Authorization');
+    const jwtToken = authHeader?.replace('Bearer ', '');
 
-    // Create a temporary response for the server client
-    // We need to use the server-side client with cookies
-    const supabase = createServerClient(url, anonKey, {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-      },
-    });
+    // Create client with JWT
+    const supabase = getAdminClient(jwtToken || undefined);
+    
+    if (!supabase) {
+      return NextResponse.json({ 
+        isAdmin: false, 
+        error: 'Failed to create client' 
+      }, { status: 500 });
+    }
 
-    // Get user from session (this reads the browser's session cookie)
+    // Get user from the session/JWT
     const { data: { user }, error } = await supabase.auth.getUser();
 
     if (error || !user) {
@@ -57,17 +87,12 @@ export async function GET() {
       }, { status: 401 });
     }
 
-    // Now check if user is admin using service role client
-    // (bypasses RLS to check admin_users table)
+    // Now check if user is admin
+    // If we have service key, use it for admin table query
+    // Otherwise, just return that user is authenticated (not admin)
     if (serviceKey) {
-      const adminClient = createServerClient(url, serviceKey, {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-        },
-      });
-
+      const adminClient = createClient(url, serviceKey);
+      
       const { data: adminUser, error: dbError } = await adminClient
         .from('admin_users')
         .select('*, admin_roles(*)')
@@ -93,13 +118,14 @@ export async function GET() {
       });
     }
 
-    // Fallback: if no service key, just return authenticated
+    // No service key - just return authenticated (not admin)
     return NextResponse.json({
       isAdmin: false,
       user: {
         id: user.id,
         email: user.email,
       },
+      message: 'Service key not configured for admin check',
     });
 
   } catch (error) {
