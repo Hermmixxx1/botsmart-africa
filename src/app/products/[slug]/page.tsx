@@ -15,6 +15,7 @@ import { WishlistButton } from '@/components/WishlistButton';
 import { StarRating, RatingSummary } from '@/components/StarRating';
 import { ReviewCard } from '@/components/ReviewCard';
 import { ReviewForm } from '@/components/ReviewForm';
+import { PriceDisplay } from '@/components/PriceDisplay';
 import type { Review, ReviewStats } from '@/types/review';
 
 interface Product {
@@ -194,11 +195,11 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
-            <div className="flex items-baseline gap-3">
-              <span className="text-4xl font-bold">
-                ${parseFloat(product.price).toFixed(2)}
-              </span>
-            </div>
+            <PriceDisplay 
+              price={parseFloat(product.price)} 
+              size="xl" 
+              className="text-foreground"
+            />
 
             <div className="rounded-lg bg-muted p-4">
               <p className="font-semibold mb-2">

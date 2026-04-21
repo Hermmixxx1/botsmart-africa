@@ -7,6 +7,7 @@ import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useStore } from '@/store/useStore';
+import { PriceDisplay } from '@/components/PriceDisplay';
 
 interface CartItem {
   id: string;
@@ -114,9 +115,11 @@ export default function CartPage() {
                       >
                         {item.name}
                       </Link>
-                      <p className="text-muted-foreground text-sm">
-                        ${item.price.toFixed(2)}
-                      </p>
+                      <PriceDisplay 
+                        price={item.price} 
+                        size="sm" 
+                        className="text-muted-foreground"
+                      />
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -141,9 +144,11 @@ export default function CartPage() {
                     </div>
 
                     <div className="text-right min-w-[100px]">
-                      <p className="text-lg font-bold">
-                        ${(item.price * item.quantity).toFixed(2)}
-                      </p>
+                      <PriceDisplay 
+                        price={item.price * item.quantity} 
+                        size="md" 
+                        className="text-foreground font-bold"
+                      />
                     </div>
 
                     <Button
@@ -168,11 +173,11 @@ export default function CartPage() {
                   <div className="space-y-3 mb-6">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Subtotal</span>
-                      <span>${subtotal.toFixed(2)}</span>
+                      <PriceDisplay price={subtotal} size="md" />
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Tax (10%)</span>
-                      <span>${tax.toFixed(2)}</span>
+                      <PriceDisplay price={tax} size="md" />
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Shipping</span>
@@ -180,7 +185,7 @@ export default function CartPage() {
                         {shipping === 0 ? (
                           <span className="text-green-600">Free</span>
                         ) : (
-                          `$${shipping.toFixed(2)}`
+                          <PriceDisplay price={shipping} size="md" />
                         )}
                       </span>
                     </div>
@@ -194,7 +199,7 @@ export default function CartPage() {
                   <div className="border-t pt-3 mb-6">
                     <div className="flex justify-between text-lg font-bold">
                       <span>Total</span>
-                      <span>${total.toFixed(2)}</span>
+                      <PriceDisplay price={total} size="lg" />
                     </div>
                   </div>
 

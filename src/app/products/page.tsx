@@ -10,6 +10,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useStore } from '@/store/useStore';
+import { PriceDisplay } from '@/components/PriceDisplay';
 
 interface Product {
   id: string;
@@ -184,11 +185,11 @@ function ProductsContent() {
                     )}
                   </CardHeader>
                   <CardContent className="p-4 pt-0">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold">
-                        ${parseFloat(product.price).toFixed(2)}
-                      </span>
-                    </div>
+                    <PriceDisplay 
+                      price={parseFloat(product.price)} 
+                      size="lg" 
+                      className="text-foreground"
+                    />
                     {product.stock < 10 && product.stock > 0 && (
                       <Badge variant="secondary" className="mt-2">
                         Only {product.stock} left!

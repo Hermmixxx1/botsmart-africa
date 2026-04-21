@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PriceDisplay } from '@/components/PriceDisplay';
 
 async function getFeaturedProducts() {
   const baseUrl = process.env.COZE_PROJECT_DOMAIN_DEFAULT || 'http://localhost:5000';
@@ -54,9 +55,11 @@ function ProductCard({ product }: { product: any }) {
         </div>
       </CardHeader>
       <CardContent className="p-4 pt-0">
-        <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-bold">${parseFloat(product.price).toFixed(2)}</span>
-        </div>
+        <PriceDisplay 
+          price={parseFloat(product.price)} 
+          size="lg" 
+          className="text-foreground"
+        />
         {product.stock < 10 && product.stock > 0 && (
           <Badge variant="secondary" className="mt-2">
             Only {product.stock} left!

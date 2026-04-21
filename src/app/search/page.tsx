@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WishlistButton } from "@/components/WishlistButton";
 import { SearchBar } from "@/components/SearchBar";
+import { PriceDisplay } from "@/components/PriceDisplay";
 
 interface SearchProduct {
   id: string;
@@ -236,9 +237,11 @@ function SearchResults() {
                     </h3>
                   </Link>
                   <div className="flex items-center gap-2 mt-2">
-                    <span className="font-bold text-lg">
-                      ${parseFloat(product.price).toFixed(2)}
-                    </span>
+                    <PriceDisplay 
+                      price={parseFloat(product.price)} 
+                      size="md" 
+                      className="text-foreground"
+                    />
                   </div>
                 </CardContent>
               </Card>

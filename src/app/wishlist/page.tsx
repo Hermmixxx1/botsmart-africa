@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/lib/use-toast";
 import { useStore } from "@/store/useStore";
+import { PriceDisplay } from "@/components/PriceDisplay";
 import type { Wishlist } from "@/types/review";
 
 export default function WishlistPage() {
@@ -146,9 +147,11 @@ export default function WishlistPage() {
                   </h3>
                 </Link>
                 <div className="flex items-center gap-2 mt-2">
-                  <span className="font-bold text-lg">
-                    ${parseFloat(product.price).toFixed(2)}
-                  </span>
+                  <PriceDisplay 
+                    price={parseFloat(product.price)} 
+                    size="md" 
+                    className="text-foreground"
+                  />
                 </div>
               </CardContent>
               <CardFooter className="p-4 pt-0">

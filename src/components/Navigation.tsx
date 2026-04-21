@@ -8,6 +8,7 @@ import { useStore } from '@/store/useStore';
 import { useEffect, useState } from 'react';
 import { getCurrentUser, signOut } from '@/lib/auth';
 import { SearchBar } from '@/components/SearchBar';
+import { CurrencySelector } from '@/components/CurrencySelector';
 
 export default function Navigation() {
   const { cart, user, setUser, getCartCount } = useStore();
@@ -66,9 +67,10 @@ export default function Navigation() {
             )}
           </div>
 
-          {/* Right side: Cart, Wishlist, Search & User */}
+          {/* Right side: Cart, Wishlist, Search, Currency & User */}
           <div className="hidden md:flex items-center space-x-4">
             <SearchBar className="w-64" placeholder="Search products..." />
+            <CurrencySelector />
             
             {user && (
               <Link href="/wishlist">
