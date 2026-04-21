@@ -96,9 +96,11 @@ export default function Navigation() {
 
             {user ? (
               <div className="flex items-center space-x-2">
-                <Button variant="ghost" size="icon">
-                  <User className="h-5 w-5" />
-                </Button>
+                <Link href="/profile">
+                  <Button variant="ghost" size="icon" title="My Account">
+                    <User className="h-5 w-5" />
+                  </Button>
+                </Link>
                 <span className="text-sm text-muted-foreground">{user.email}</span>
                 <Button
                   variant="ghost"
@@ -151,6 +153,13 @@ export default function Navigation() {
             </Link>
             {user && (
               <>
+                <Link
+                  href="/profile"
+                  className="block text-sm font-medium hover:text-primary transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  My Account
+                </Link>
                 <Link
                   href="/orders"
                   className="block text-sm font-medium hover:text-primary transition-colors"
