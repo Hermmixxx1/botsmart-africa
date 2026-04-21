@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getSupabase } from '@/storage/database/supabase-client';
 
 // GET /api/categories - List all categories
 export async function GET() {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
 
     const { data, error } = await client
       .from('categories')
@@ -27,7 +27,7 @@ export async function GET() {
 // POST /api/categories - Create a new category (admin only)
 export async function POST(request: NextRequest) {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
     const body = await request.json();
 
     // Validate required fields

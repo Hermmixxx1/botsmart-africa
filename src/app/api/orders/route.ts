@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getSupabase } from '@/storage/database/supabase-client';
 
 // GET /api/orders - List user's orders
 export async function GET(request: NextRequest) {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
     const { data: { user } } = await client.auth.getUser();
 
     if (!user) {
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 // POST /api/orders - Create a new order
 export async function POST(request: NextRequest) {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
     const { data: { user } } = await client.auth.getUser();
 
     if (!user) {

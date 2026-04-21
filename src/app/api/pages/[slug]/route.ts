@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getSupabase } from '@/storage/database/supabase-client';
 
 // GET /api/pages/[slug] - Get a published page by slug (public)
 export async function GET(
@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
     const { slug } = await params;
 
     const { data, error } = await client

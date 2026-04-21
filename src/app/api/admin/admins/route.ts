@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getSupabase } from '@/storage/database/supabase-client';
 import { requireSuperAdmin, PERMISSIONS } from '@/lib/rbac';
 
 // GET /api/admin/admins - Get all admin users (super admin only)
 export async function GET(request: NextRequest) {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
     const auth = await requireSuperAdmin(request);
 
     if (!auth) {
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/admins - Create a new admin user (super admin only)
 export async function POST(request: NextRequest) {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
     const auth = await requireSuperAdmin(request);
 
     if (!auth) {

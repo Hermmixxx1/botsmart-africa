@@ -1,4 +1,4 @@
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getSupabase } from '@/storage/database/supabase-client';
 
 export interface AuditLog {
   id?: string;
@@ -82,7 +82,7 @@ export class AuditLogger {
    */
   static async log(log: Omit<AuditLog, 'id' | 'created_at'>): Promise<void> {
     try {
-      const client = getSupabaseClient();
+      const client = getSupabase();
 
       const { error } = await client
         .from('audit_logs')
@@ -193,7 +193,7 @@ export class AuditLogger {
    */
   static async getUserLogs(userId: string, limit: number = 50): Promise<AuditLog[]> {
     try {
-      const client = getSupabaseClient();
+      const client = getSupabase();
 
       const { data, error } = await client
         .from('audit_logs')
@@ -219,7 +219,7 @@ export class AuditLogger {
     limit: number = 50
   ): Promise<AuditLog[]> {
     try {
-      const client = getSupabaseClient();
+      const client = getSupabase();
 
       const { data, error } = await client
         .from('audit_logs')
@@ -248,7 +248,7 @@ export class AuditLogger {
     end_date?: string;
   }, limit: number = 100): Promise<AuditLog[]> {
     try {
-      const client = getSupabaseClient();
+      const client = getSupabase();
 
       let query = client
         .from('audit_logs')

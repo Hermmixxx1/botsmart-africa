@@ -1,4 +1,4 @@
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getSupabase } from '@/storage/database/supabase-client';
 
 export interface AuthUser {
   id: string;
@@ -12,7 +12,12 @@ export interface AuthUser {
 // Get current user from session (Client-side)
 export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
+    
+    if (!client) {
+      // Client not available yet, return null (will be fetched after hydration)
+      return null;
+    }
     
     // Get the session from localStorage or cookies
     const { data: { session }, error } = await client.auth.getSession();
@@ -42,7 +47,12 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
 // Sign up new user
 export async function signUp(email: string, password: string, fullName: string) {
-  const client = getSupabaseClient();
+  const client = getSupabase();
+  
+  if (!client) {
+    throw new Error('Authentication not ready. Please refresh the page.');
+  }
+  
   const { data, error } = await client.auth.signUp({
     email,
     password,
@@ -59,7 +69,12 @@ export async function signUp(email: string, password: string, fullName: string) 
 
 // Sign in user
 export async function signIn(email: string, password: string) {
-  const client = getSupabaseClient();
+  const client = getSupabase();
+  
+  if (!client) {
+    throw new Error('Authentication not ready. Please refresh the page.');
+  }
+  
   const { data, error } = await client.auth.signInWithPassword({
     email,
     password,
@@ -71,7 +86,13 @@ export async function signIn(email: string, password: string) {
 
 // Sign out user
 export async function signOut() {
-  const client = getSupabaseClient();
+  const client = getSupabase();
+  
+  if (!client) {
+    // Already signed out or not initialized
+    return;
+  }
+  
   const { error } = await client.auth.signOut();
 
   if (error) throw new Error(`Sign out failed: ${error.message}`);
@@ -80,5 +101,5 @@ export async function signOut() {
 // Check if user is authenticated
 export async function isAuthenticated(): Promise<boolean> {
   const user = await getCurrentUser();
-  return !!user;
+  return user !== null;
 }

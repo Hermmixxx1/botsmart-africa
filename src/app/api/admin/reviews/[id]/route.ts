@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseClient } from "@/storage/database/supabase-client";
+import { getSupabase } from "@/storage/database/supabase-client";
 import { requireAdmin } from "@/lib/rbac";
 
 // PATCH - Update review (approve/reject)
@@ -18,7 +18,7 @@ export async function PATCH(
     const body = await request.json();
     const { is_approved } = body;
 
-    const supabase = getSupabaseClient();
+    const supabase = getSupabase();
 
     // Update the review
     const { data: review, error } = await supabase
@@ -59,7 +59,7 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const supabase = getSupabaseClient();
+    const supabase = getSupabase();
 
     const { error } = await supabase.from("reviews").delete().eq("id", id);
 

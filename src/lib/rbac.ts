@@ -1,4 +1,4 @@
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getSupabase } from '@/storage/database/supabase-client';
 import { NextRequest, NextResponse } from 'next/server';
 
 export type UserRole = 'super_admin' | 'admin' | 'manager' | 'customer' | 'seller';
@@ -86,7 +86,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
  */
 export async function getUserPermissions(userId: string): Promise<UserPermissions | null> {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
 
     // Check if user is an admin
     const { data: adminData, error: adminError } = await client
@@ -172,7 +172,7 @@ export function hasAnyPermission(userPermissions: UserPermissions, permissions: 
  * Middleware to check if user is authenticated
  */
 export async function requireAuth(request: NextRequest): Promise<{ userId: string } | null> {
-  const client = getSupabaseClient();
+  const client = getSupabase();
   const { data: { user } } = await client.auth.getUser();
 
   if (!user) {

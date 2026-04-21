@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getSupabase } from '@/storage/database/supabase-client';
 
 // GET /api/seller/products - Get seller's products
 export async function GET(request: NextRequest) {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
     const { data: { user } } = await client.auth.getUser();
 
     if (!user) {

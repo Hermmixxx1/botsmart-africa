@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseClient } from "@/storage/database/supabase-client";
+import { getSupabase } from "@/storage/database/supabase-client";
 
 // POST - Update password (for logged-in users)
 export async function POST(request: NextRequest) {
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = getSupabase();
 
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();

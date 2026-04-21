@@ -60,29 +60,28 @@ except Exception as e:
   }
 }
 
-function getSupabaseCredentials(): SupabaseCredentials {
-  loadEnv();
-
+function getSupabaseCredentials(): SupabaseCredentials | null {
   // NEXT_PUBLIC_ variables are available on both client and server (embedded at build time)
   // COZE_ variables are loaded at runtime from the environment
+  
   let url: string | undefined;
   let anonKey: string | undefined;
 
-  // Server-side: check COZE_ variables first, then NEXT_PUBLIC_
-  if (typeof window === 'undefined') {
-    url = process.env.COZE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-    anonKey = process.env.COZE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  } else {
-    // Client-side: check window variables first (runtime), then NEXT_PUBLIC_ (build-time)
-    url = (window as any).__SUPABASE_URL__ || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.COZE_SUPABASE_URL;
-    anonKey = (window as any).__SUPABASE_ANON_KEY__ || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.COZE_SUPABASE_ANON_KEY;
+  // Check NEXT_PUBLIC_ first (available on both client and server at build time)
+  url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  // On server-side, also check COZE_ variables (loaded at runtime)
+  if (typeof window === 'undefined' && !url) {
+    loadEnv();
+    url = process.env.COZE_SUPABASE_URL;
+    anonKey = process.env.COZE_SUPABASE_ANON_KEY;
   }
 
-  if (!url) {
-    throw new Error('COZE_SUPABASE_URL is not set');
-  }
-  if (!anonKey) {
-    throw new Error('COZE_SUPABASE_ANON_KEY is not set');
+  if (!url || !anonKey) {
+    // Return null instead of throwing - let callers handle missing credentials
+    console.warn('Supabase credentials not available');
+    return null;
   }
 
   return { url, anonKey };
@@ -93,9 +92,15 @@ function getSupabaseServiceRoleKey(): string | undefined {
   return process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
 }
 
-function getSupabaseClient(token?: string): SupabaseClient {
-  const { url, anonKey } = getSupabaseCredentials();
+function getSupabaseClient(token?: string): SupabaseClient | null {
+  const credentials = getSupabaseCredentials();
+  
+  if (!credentials) {
+    return null;
+  }
 
+  const { url, anonKey } = credentials;
+  
   let key: string;
   if (token) {
     key = anonKey;
@@ -134,4 +139,17 @@ function getSupabaseClient(token?: string): SupabaseClient {
   });
 }
 
-export { loadEnv, getSupabaseCredentials, getSupabaseServiceRoleKey, getSupabaseClient };
+// Export both functions
+// - getSupabaseClient: returns null if not available (for client components)
+// - getSupabase: throws if not available (for server-side API routes)
+export { getSupabaseClient, getSupabaseCredentials, getSupabaseServiceRoleKey, loadEnv };
+export { getSupabase };
+
+// Helper function that throws if client is not available (for server-side API routes)
+function getSupabase(): SupabaseClient {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('Supabase client not available. Check environment variables.');
+  }
+  return client;
+}

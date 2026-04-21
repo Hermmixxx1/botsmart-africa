@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseClient } from "@/storage/database/supabase-client";
+import { getSupabase } from "@/storage/database/supabase-client";
 
 // GET - Search products
 export async function GET(request: NextRequest) {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "12");
 
-    const supabase = getSupabaseClient();
+    const supabase = getSupabase();
 
     // Build the query
     let dbQuery = supabase

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { LLMClient, Config, HeaderUtils } from "coze-coding-dev-sdk";
 import { requireSuperAdmin } from "@/lib/rbac";
-import { getSupabaseClient } from "@/storage/database/supabase-client";
+import { getSupabase } from "@/storage/database/supabase-client";
 import { z } from "zod";
 import crypto from "crypto";
 
@@ -180,7 +180,7 @@ ${htmlContent.substring(0, 8000)}`;
     const slug = `${slugBase}-${crypto.randomUUID().substring(0, 8)}`;
 
     // Step 5: Save to database
-    const supabase = getSupabaseClient();
+    const supabase = getSupabase();
 
     const { data: product, error: dbError } = await supabase
       .from("products")

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getSupabase } from '@/storage/database/supabase-client';
 
 // POST /api/sellers/register - Register as a seller
 export async function POST(request: NextRequest) {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
     const { data: { user } } = await client.auth.getUser();
 
     if (!user) {
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
 // GET /api/sellers/profile - Get current user's seller profile
 export async function GET(request: NextRequest) {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
     const { data: { user } } = await client.auth.getUser();
 
     if (!user) {

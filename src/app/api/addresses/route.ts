@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getSupabase } from '@/storage/database/supabase-client';
 
 // GET /api/addresses - List user's addresses
 export async function GET() {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
     const { data: { user } } = await client.auth.getUser();
 
     if (!user) {
@@ -36,7 +36,7 @@ export async function GET() {
 // POST /api/addresses - Create a new address
 export async function POST(request: NextRequest) {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
     const { data: { user } } = await client.auth.getUser();
 
     if (!user) {

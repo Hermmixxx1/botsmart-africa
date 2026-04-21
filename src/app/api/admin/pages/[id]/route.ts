@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getSupabase } from '@/storage/database/supabase-client';
 import { requireAdmin, requireSuperAdmin, PERMISSIONS, hasPermission } from '@/lib/rbac';
 
 // GET /api/admin/pages/[id] - Get a specific page
@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
     const { id } = await params;
     const auth = await requireAdmin(request);
 
@@ -47,7 +47,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
     const { id } = await params;
     const auth = await requireAdmin(request);
 
@@ -122,7 +122,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
     const { id } = await params;
     const auth = await requireAdmin(request);
 

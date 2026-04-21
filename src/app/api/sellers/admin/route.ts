@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getSupabase } from '@/storage/database/supabase-client';
 
 // GET /api/sellers/admin - List all seller profiles (admin only)
 export async function GET(request: NextRequest) {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status'); // Filter by status: pending, approved, rejected
 

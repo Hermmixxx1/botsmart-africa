@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseClient } from "@/storage/database/supabase-client";
+import { getSupabase } from "@/storage/database/supabase-client";
 import { requireAdmin } from "@/lib/rbac";
 
 // GET - Get all reviews (admin)
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status"); // 'approved', 'pending', 'all'
     const productId = searchParams.get("product_id");
 
-    const supabase = getSupabaseClient();
+    const supabase = getSupabase();
 
     let query = supabase
       .from("reviews")

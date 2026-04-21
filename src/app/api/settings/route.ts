@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getSupabase } from '@/storage/database/supabase-client';
 
 // GET /api/settings - Get public site settings
 export async function GET() {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
 
     const { data, error } = await client
       .from('site_settings')

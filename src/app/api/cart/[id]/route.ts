@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getSupabase } from '@/storage/database/supabase-client';
 
 // PUT /api/cart/[id] - Update cart item quantity
 export async function PUT(
@@ -7,7 +7,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
     const { data: { user } } = await client.auth.getUser();
     const { id } = await params;
     const body = await request.json();
@@ -54,7 +54,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
     const { data: { user } } = await client.auth.getUser();
     const { id } = await params;
 

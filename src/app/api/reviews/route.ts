@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseClient } from "@/storage/database/supabase-client";
+import { getSupabase } from "@/storage/database/supabase-client";
 import { z } from "zod";
 
 const reviewSchema = z.object({
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
 
-    const supabase = getSupabaseClient();
+    const supabase = getSupabase();
 
     let query = supabase
       .from("reviews")
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     const validated = reviewSchema.parse(body);
 
     // Get user from session
-    const supabase = getSupabaseClient();
+    const supabase = getSupabase();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {

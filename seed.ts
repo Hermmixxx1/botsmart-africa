@@ -1,6 +1,11 @@
 import { getSupabaseClient } from './src/storage/database/supabase-client';
 
-const client = getSupabaseClient();
+const client = getSupabaseClient()!;
+
+if (!client) {
+  console.error('Failed to initialize Supabase client. Check environment variables.');
+  process.exit(1);
+}
 
 async function seedDatabase() {
   console.log('🌱 Starting database seed...');

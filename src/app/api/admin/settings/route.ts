@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getSupabase } from '@/storage/database/supabase-client';
 import { requireSuperAdmin, PERMISSIONS } from '@/lib/rbac';
 
 // GET /api/admin/settings - Get site settings (super admin only)
 export async function GET(request: NextRequest) {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
     const auth = await requireSuperAdmin(request);
 
     if (!auth) {
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 // PATCH /api/admin/settings - Update site settings (super admin only)
 export async function PATCH(request: NextRequest) {
   try {
-    const client = getSupabaseClient();
+    const client = getSupabase();
     const auth = await requireSuperAdmin(request);
 
     if (!auth) {

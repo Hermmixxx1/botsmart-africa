@@ -32,10 +32,16 @@ export function WishlistButton({
   };
 
   useEffect(() => {
-    checkWishlist();
-  }, [productId]);
+    if (supabase) {
+      checkWishlist();
+    }
+  }, [productId, supabase]);
 
   const checkWishlist = async () => {
+    if (!supabase) {
+      setIsChecking(false);
+      return;
+    }
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -59,6 +65,14 @@ export function WishlistButton({
   };
 
   const toggleWishlist = async () => {
+    if (!supabase) {
+      toast({
+        title: "Error",
+        description: "Please refresh the page and try again",
+      });
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
