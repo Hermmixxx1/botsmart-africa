@@ -1,4 +1,4 @@
-import { getSupabase } from '@/storage/database/supabase-client';
+import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 export interface AuthUser {
   id: string;
@@ -12,7 +12,7 @@ export interface AuthUser {
 // Get current user from session (Client-side)
 export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
-    const client = getSupabase();
+    const client = getSupabaseClient();
     
     if (!client) {
       // Client not available yet, return null (will be fetched after hydration)
@@ -47,7 +47,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
 // Sign up new user
 export async function signUp(email: string, password: string, fullName: string) {
-  const client = getSupabase();
+  const client = getSupabaseClient();
   
   if (!client) {
     throw new Error('Authentication not ready. Please refresh the page.');
@@ -69,7 +69,7 @@ export async function signUp(email: string, password: string, fullName: string) 
 
 // Sign in user
 export async function signIn(email: string, password: string) {
-  const client = getSupabase();
+  const client = getSupabaseClient();
   
   if (!client) {
     throw new Error('Authentication not ready. Please refresh the page.');
@@ -86,7 +86,7 @@ export async function signIn(email: string, password: string) {
 
 // Sign out user
 export async function signOut() {
-  const client = getSupabase();
+  const client = getSupabaseClient();
   
   if (!client) {
     // Already signed out or not initialized
