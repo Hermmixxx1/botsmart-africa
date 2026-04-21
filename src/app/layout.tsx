@@ -3,6 +3,7 @@ import { Inspector } from 'react-dev-inspector';
 import './globals.css';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
+import { SupabaseProvider } from '@/components/SupabaseProvider';
 
 export const metadata: Metadata = {
   title: {
@@ -29,24 +30,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const isDev = process.env.COZE_PROJECT_ENV === 'DEV';
-  const supabaseUrl = process.env.COZE_SUPABASE_URL || '';
-  const supabaseAnonKey = process.env.COZE_SUPABASE_ANON_KEY || '';
-
   return (
     <html lang="en">
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.__SUPABASE_URL__ = '${supabaseUrl}';
-              window.__SUPABASE_ANON_KEY__ = '${supabaseAnonKey}';
-            `,
-          }}
-        />
-      </head>
       <body className="antialiased min-h-screen bg-background flex flex-col">
-        {isDev && <Inspector />}
+        <SupabaseProvider />
         <Navigation />
         <main className="flex-1">
           {children}
