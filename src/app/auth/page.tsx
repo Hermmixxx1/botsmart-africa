@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense, useEffect } from 'react';
+import { useState, Suspense, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -18,10 +18,11 @@ interface SupabaseConfig {
   supabaseAnonKey: string;
 }
 
-// Fetch Supabase config from server
 async function fetchConfig(): Promise<SupabaseConfig | null> {
   try {
-    const response = await fetch('/api/config');
+    const response = await fetch('/api/config', {
+      credentials: 'include',
+    });
     if (response.ok) {
       return await response.json();
     }
@@ -47,33 +48,89 @@ function AuthContent() {
   const [resendLoading, setResendLoading] = useState(false);
   const [verificationLoading, setVerificationLoading] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
-  const [configLoaded, setConfigLoaded] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize Supabase client after mounting
   useEffect(() => {
+    let mounted = true;
+    let retryCount = 0;
+    const maxRetries = 3;
+
     async function initSupabase() {
-      const config = await fetchConfig();
-      
-      if (config?.supabaseUrl && config?.supabaseAnonKey) {
-        try {
-          const client = createClient(config.supabaseUrl, config.supabaseAnonKey, {
-            auth: {
-              persistSession: true,
-              storageKey: 'supabase-auth',
-              autoRefreshToken: true,
-            },
-          });
-          setSupabase(client);
-          setConfigLoaded(true);
-        } catch (err) {
-          console.error('Failed to create Supabase client:', err);
-          setCredentialsError('Failed to initialize authentication.');
+      try {
+        // Try fetching config
+        const config = await fetchConfig();
+        console.log('Config fetched:', config ? 'success' : 'failed');
+        
+        if (!mounted) return;
+
+        if (config?.supabaseUrl && config?.supabaseAnonKey) {
+          try {
+            console.log('Creating Supabase client...');
+            const client = createClient(config.supabaseUrl, config.supabaseAnonKey, {
+              auth: {
+                persistSession: true,
+                storageKey: 'supabase-auth',
+                autoRefreshToken: true,
+              },
+            });
+            console.log('Supabase client created successfully');
+            
+            if (mounted) {
+              setSupabase(client);
+              setIsInitializing(false);
+            }
+          } catch (err) {
+            console.error('Failed to create Supabase client:', err);
+            if (mounted) {
+              setCredentialsError('Failed to initialize authentication. Please refresh.');
+              setIsInitializing(false);
+            }
+          }
+        } else {
+          // Retry logic
+          retryCount++;
+          console.log(`Config not ready, retry ${retryCount}/${maxRetries}`);
+          
+          if (retryCount < maxRetries && mounted) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            initSupabase();
+          } else if (mounted) {
+            setCredentialsError('Supabase credentials not available. Please refresh the page.');
+            setIsInitializing(false);
+          }
         }
-      } else {
-        setCredentialsError('Supabase credentials not configured. Please contact support.');
+      } catch (err) {
+        console.error('Init error:', err);
+        retryCount++;
+        if (retryCount < maxRetries && mounted) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          initSupabase();
+        } else if (mounted) {
+          setCredentialsError('Failed to connect. Please refresh the page.');
+          setIsInitializing(false);
+        }
       }
     }
+
     initSupabase();
+
+    // Set a timeout to show error if init takes too long
+    initTimeoutRef.current = setTimeout(() => {
+      if (mounted && !supabase) {
+        console.error('Initialization timed out');
+        setCredentialsError('Connection timed out. Please refresh the page.');
+        setIsInitializing(false);
+      }
+    }, 15000);
+
+    return () => {
+      mounted = false;
+      if (initTimeoutRef.current) {
+        clearTimeout(initTimeoutRef.current);
+      }
+    };
   }, []);
 
   // Check if user is coming from an email confirmation link
@@ -330,11 +387,19 @@ function AuthContent() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Configuration Error</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-500" />
+              Configuration Error
+            </CardTitle>
             <CardDescription>{credentialsError}</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button onClick={() => window.location.reload()}>Reload Page</Button>
+          <CardContent className="space-y-4">
+            <Button onClick={() => window.location.reload()} className="w-full">
+              Reload Page
+            </Button>
+            <Button variant="outline" onClick={() => window.location.href = '/'} className="w-full">
+              Go to Homepage
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -373,13 +438,18 @@ function AuthContent() {
     );
   }
 
-  if (!supabase) {
+  if (isInitializing || !supabase) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading authentication...</p>
-        </div>
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
+              <h3 className="text-lg font-semibold mb-2">Loading...</h3>
+              <p className="text-muted-foreground">Setting up authentication</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
