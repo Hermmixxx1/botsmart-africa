@@ -35,32 +35,6 @@ function AuthContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Check if already logged in on mount
-  useEffect(() => {
-    async function checkExistingSession() {
-      try {
-        const res = await fetch('/api/auth/check-session');
-        const data = await res.json();
-        
-        if (data.user) {
-          // User is already logged in, redirect based on admin status
-          const adminCheck = await fetch('/api/auth/check-admin');
-          const adminData = await adminCheck.json();
-          
-          if (adminData.isAdmin) {
-            router.push('/admin');
-          } else {
-            router.push(redirect);
-          }
-        }
-      } catch (e) {
-        // Continue to login form
-      }
-    }
-    
-    checkExistingSession();
-  }, []);
-
   // Initialize Supabase on mount
   useEffect(() => {
     async function initSupabase() {
@@ -108,6 +82,34 @@ function AuthContent() {
     
     initSupabase();
   }, []);
+
+  // Check if already logged in AFTER Supabase is ready
+  useEffect(() => {
+    if (!supabase) return;
+
+    async function checkExistingSession() {
+      try {
+        // Use the frontend Supabase client directly - it has access to the session
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          // User is already logged in, redirect based on admin status
+          const adminCheck = await fetch('/api/auth/check-admin');
+          const adminData = await adminCheck.json();
+          
+          if (adminData.isAdmin) {
+            router.push('/admin');
+          } else {
+            router.push(redirect);
+          }
+        }
+      } catch (e) {
+        // Continue to login form
+      }
+    }
+    
+    checkExistingSession();
+  }, [supabase]);
 
   // Check for email confirmation
   useEffect(() => {
