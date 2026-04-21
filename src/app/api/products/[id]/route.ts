@@ -8,6 +8,10 @@ export async function GET(
 ) {
   try {
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
     const { id } = await params;
 
     // Public API - select only essential columns
@@ -67,6 +71,10 @@ export async function PUT(
 ) {
   try {
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
     const { id } = await params;
 
     // Verify admin/seller access

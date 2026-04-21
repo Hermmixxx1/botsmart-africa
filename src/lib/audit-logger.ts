@@ -83,6 +83,11 @@ export class AuditLogger {
   static async log(log: Omit<AuditLog, 'id' | 'created_at'>): Promise<void> {
     try {
       const client = getSupabase();
+    
+      if (!client) {
+        console.error('Supabase client not available');
+        return;
+      }
 
       const { error } = await client
         .from('audit_logs')
@@ -194,6 +199,11 @@ export class AuditLogger {
   static async getUserLogs(userId: string, limit: number = 50): Promise<AuditLog[]> {
     try {
       const client = getSupabase();
+    
+    if (!client) {
+      console.error('Supabase client not available');
+      return [];
+    }
 
       const { data, error } = await client
         .from('audit_logs')
@@ -220,6 +230,11 @@ export class AuditLogger {
   ): Promise<AuditLog[]> {
     try {
       const client = getSupabase();
+    
+    if (!client) {
+      console.error('Supabase client not available');
+      return [];
+    }
 
       const { data, error } = await client
         .from('audit_logs')
@@ -249,6 +264,11 @@ export class AuditLogger {
   }, limit: number = 100): Promise<AuditLog[]> {
     try {
       const client = getSupabase();
+    
+    if (!client) {
+      console.error('Supabase client not available');
+      return [];
+    }
 
       let query = client
         .from('audit_logs')

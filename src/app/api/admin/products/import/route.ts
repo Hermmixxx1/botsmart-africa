@@ -181,6 +181,10 @@ ${htmlContent.substring(0, 8000)}`;
 
     // Step 5: Save to database
     const supabase = getSupabase();
+    
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
 
     const { data: product, error: dbError } = await supabase
       .from("products")

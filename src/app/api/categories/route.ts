@@ -7,6 +7,10 @@ export async function GET() {
     const client = getSupabase();
     
     if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
+    
+    if (!client) {
       return NextResponse.json({ categories: [] });
     }
 
@@ -32,6 +36,10 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
     const body = await request.json();
 
     // Validate required fields

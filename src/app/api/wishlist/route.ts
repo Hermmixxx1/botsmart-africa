@@ -5,6 +5,10 @@ import { getSupabase } from "@/storage/database/supabase-client";
 export async function GET(request: NextRequest) {
   try {
     const supabase = getSupabase();
+    
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -52,6 +56,10 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabase();
+    
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -112,6 +120,10 @@ export async function DELETE(request: NextRequest) {
     }
 
     const supabase = getSupabase();
+    
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {

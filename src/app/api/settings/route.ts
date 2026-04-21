@@ -5,6 +5,10 @@ import { getSupabase } from '@/storage/database/supabase-client';
 export async function GET() {
   try {
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
 
     const { data, error } = await client
       .from('site_settings')

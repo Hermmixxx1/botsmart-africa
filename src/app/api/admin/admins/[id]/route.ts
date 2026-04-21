@@ -9,6 +9,10 @@ export async function GET(
 ) {
   try {
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
     const { id } = await params;
     const auth = await requireSuperAdmin(request);
 
@@ -47,6 +51,10 @@ export async function PATCH(
 ) {
   try {
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
     const { id } = await params;
     const auth = await requireSuperAdmin(request);
 
@@ -120,6 +128,10 @@ export async function DELETE(
 ) {
   try {
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
     const { id } = await params;
     const auth = await requireSuperAdmin(request);
 

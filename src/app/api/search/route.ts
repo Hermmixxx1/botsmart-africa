@@ -14,6 +14,10 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "12");
 
     const supabase = getSupabase();
+    
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
 
     // Build the query
     let dbQuery = supabase

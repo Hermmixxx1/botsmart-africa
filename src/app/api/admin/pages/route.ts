@@ -6,6 +6,10 @@ import { requireAdmin, requireSuperAdmin, PERMISSIONS, hasPermission } from '@/l
 export async function GET(request: NextRequest) {
   try {
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
     const auth = await requireAdmin(request);
 
     if (!auth) {
@@ -43,6 +47,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
     const auth = await requireAdmin(request);
 
     if (!auth) {

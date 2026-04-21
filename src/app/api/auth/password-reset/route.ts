@@ -14,6 +14,10 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabase();
+    
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://botsmart-africa-krdn5eesh-hermix-lebogangs-projects.vercel.app'}/auth/reset-password`,

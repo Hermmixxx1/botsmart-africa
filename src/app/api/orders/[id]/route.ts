@@ -8,6 +8,10 @@ export async function GET(
 ) {
   try {
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
     const { data: { user } } = await client.auth.getUser();
     const { id } = await params;
 

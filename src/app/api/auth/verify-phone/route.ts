@@ -14,6 +14,10 @@ export async function POST(request: NextRequest) {
     }
 
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
 
     // Verify the OTP for phone
     const { data, error } = await client.auth.verifyOtp({

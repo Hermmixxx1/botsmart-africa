@@ -14,6 +14,10 @@ export async function POST(request: NextRequest) {
     }
 
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
 
     const { error } = await client.auth.resend({
       type: 'signup',

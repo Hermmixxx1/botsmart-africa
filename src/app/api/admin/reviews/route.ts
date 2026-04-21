@@ -18,6 +18,10 @@ export async function GET(request: NextRequest) {
     const productId = searchParams.get("product_id");
 
     const supabase = getSupabase();
+    
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
 
     let query = supabase
       .from("reviews")

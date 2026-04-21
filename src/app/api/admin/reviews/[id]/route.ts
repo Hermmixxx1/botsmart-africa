@@ -19,6 +19,10 @@ export async function PATCH(
     const { is_approved } = body;
 
     const supabase = getSupabase();
+    
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
 
     // Update the review
     const { data: review, error } = await supabase
@@ -60,6 +64,10 @@ export async function DELETE(
 
     const { id } = await params;
     const supabase = getSupabase();
+    
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
 
     const { error } = await supabase.from("reviews").delete().eq("id", id);
 

@@ -8,6 +8,10 @@ export async function PUT(
 ) {
   try {
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
     const { data: { user } } = await client.auth.getUser();
     const { id } = await params;
     const body = await request.json();
@@ -55,6 +59,10 @@ export async function DELETE(
 ) {
   try {
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
     const { data: { user } } = await client.auth.getUser();
     const { id } = await params;
 

@@ -6,6 +6,10 @@ import { requireSuperAdmin, PERMISSIONS } from '@/lib/rbac';
 export async function GET(request: NextRequest) {
   try {
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
     const auth = await requireSuperAdmin(request);
 
     if (!auth) {
@@ -39,6 +43,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
     const auth = await requireSuperAdmin(request);
 
     if (!auth) {

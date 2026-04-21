@@ -8,6 +8,10 @@ export async function PATCH(
 ) {
   try {
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
     const { id } = await params;
     const body = await request.json();
     const { status, rejection_reason } = body;
@@ -58,6 +62,10 @@ export async function GET(
 ) {
   try {
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
     const { id } = await params;
 
     const { data, error } = await client

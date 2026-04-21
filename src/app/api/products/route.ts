@@ -7,6 +7,10 @@ export async function GET(request: NextRequest) {
     const client = getSupabase();
     
     if (!client) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
+    
+    if (!client) {
       return NextResponse.json(
         { error: 'Database not configured' },
         { status: 500 }

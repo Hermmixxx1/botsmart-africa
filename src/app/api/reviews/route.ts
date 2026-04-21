@@ -18,6 +18,10 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "10");
 
     const supabase = getSupabase();
+    
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
 
     let query = supabase
       .from("reviews")
@@ -79,6 +83,10 @@ export async function POST(request: NextRequest) {
 
     // Get user from session
     const supabase = getSupabase();
+    
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
