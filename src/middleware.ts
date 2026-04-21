@@ -1,6 +1,11 @@
+/**
+ * Next.js Middleware
+ * Protects routes and applies security headers
+ */
+
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
+import { createSupabaseServerClient, isSupabaseConfigured } from '@/lib/supabase';
 import { applySecurityHeaders, rateLimit } from '@/lib/security';
 
 // Rate limiting configuration
@@ -9,15 +14,47 @@ const rateLimiter = rateLimit({
   maxRequests: 100, // 100 requests per window
 });
 
+// Routes that don't require authentication
+const publicRoutes = [
+  '/',
+  '/auth',
+  '/products',
+  '/contact-us',
+  '/shipping-policy',
+  '/return-policy',
+  '/privacy-policy',
+  '/terms-of-service',
+  '/seller/register',
+];
+
+// Check if route is public
+function isPublicRoute(pathname: string): boolean {
+  // Allow exact matches
+  if (publicRoutes.includes(pathname)) return true;
+  
+  // Allow paths starting with these prefixes
+  const publicPrefixes = [
+    '/_next',
+    '/api/public',
+    '/products/',
+    '/page/',
+    '/favicon',
+    '/public',
+  ];
+  
+  return publicPrefixes.some(prefix => pathname.startsWith(prefix));
+}
+
 export async function middleware(request: NextRequest) {
-  // Apply security headers to all responses
+  const { pathname } = request.nextUrl;
+
+  // 1. Apply security headers to all responses
   const response = NextResponse.next();
   applySecurityHeaders(response);
 
-  // Rate limiting for API routes
-  if (request.nextUrl.pathname.startsWith('/api/')) {
+  // 2. Rate limiting for API routes
+  if (pathname.startsWith('/api/')) {
     const isAllowed = await rateLimiter(request);
-
     if (!isAllowed) {
       return NextResponse.json(
         { error: 'Too many requests. Please try again later.' },
@@ -26,54 +63,68 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Get Supabase URL and Anon Key (support both prefixes)
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 
-                      process.env.COZE_SUPABASE_URL ||
-                      process.env.SUPABASE_URL;
-  
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
-                          process.env.COZE_SUPABASE_ANON_KEY ||
-                          process.env.SUPABASE_ANON_KEY;
+  // 3. Skip auth checks for public routes
+  if (isPublicRoute(pathname)) {
+    return response;
+  }
 
-  // Only protect routes if Supabase is configured
-  if (supabaseUrl && supabaseAnonKey) {
-    // Create server client using @supabase/ssr for proper cookie handling
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            request.cookies.set(name, value);
-            response.cookies.set(name, value, options);
-          });
-        },
+  // 4. For protected routes, check authentication
+  if (!isSupabaseConfigured()) {
+    // If Supabase not configured, allow through (dev mode)
+    console.warn('Supabase not configured, skipping auth check');
+    return response;
+  }
+
+  try {
+    // Create server client with access to request cookies
+    const supabase = createSupabaseServerClient({
+      getAll() {
+        return request.cookies.getAll();
       },
     });
 
-    // Refresh session if expired
+    // Get current session
     const { data: { session }, error } = await supabase.auth.getSession();
-    
+
+    if (error) {
+      console.error('Auth session error:', error.message);
+    }
+
     const isAuthenticated = session && !error;
 
-    // Protect admin routes
-    if (request.nextUrl.pathname.startsWith('/admin')) {
+    // 5. Protect admin routes
+    if (pathname.startsWith('/admin')) {
       if (!isAuthenticated) {
         const loginUrl = new URL('/auth', request.url);
-        loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
+        loginUrl.searchParams.set('redirect', pathname);
+        return NextResponse.redirect(loginUrl);
+      }
+      // Admin check happens in the page/layout, not here
+      // This is intentional - allows us to show proper error pages
+    }
+
+    // 6. Protect seller routes (except register)
+    if (pathname.startsWith('/seller') && pathname !== '/seller/register') {
+      if (!isAuthenticated) {
+        const loginUrl = new URL('/auth', request.url);
+        loginUrl.searchParams.set('redirect', pathname);
         return NextResponse.redirect(loginUrl);
       }
     }
 
-    // Protect seller routes (except register)
-    if (request.nextUrl.pathname.startsWith('/seller') && request.nextUrl.pathname !== '/seller/register') {
+    // 7. Protect profile and orders
+    if (pathname === '/profile' || pathname === '/wishlist') {
       if (!isAuthenticated) {
         const loginUrl = new URL('/auth', request.url);
-        loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
+        loginUrl.searchParams.set('redirect', pathname);
         return NextResponse.redirect(loginUrl);
       }
     }
+
+  } catch (error) {
+    console.error('Middleware error:', error);
+    // On error, allow request through but log it
+    // This prevents the site from going down due to auth issues
   }
 
   return response;
@@ -81,6 +132,14 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public files
+     * - Static pages we want to be publicly accessible
+     */
     '/((?!_next/static|_next/image|favicon.ico|public).*)',
   ],
 };

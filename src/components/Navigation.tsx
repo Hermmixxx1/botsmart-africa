@@ -5,37 +5,15 @@ import { ShoppingBag, User, Menu, X, LogOut, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useStore } from '@/store/useStore';
-import { useEffect, useState } from 'react';
-import { getCurrentUser, signOut } from '@/lib/auth';
+import { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { SearchBar } from '@/components/SearchBar';
 import { CurrencySelector } from '@/components/CurrencySelector';
 
 export default function Navigation() {
-  const { cart, user, setUser, getCartCount } = useStore();
+  const { cart, getCartCount } = useStore();
+  const { user, isAdmin, signOut } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  useEffect(() => {
-    // Check if user is logged in
-    getCurrentUser()
-      .then((currentUser) => {
-        if (currentUser) {
-          setUser({
-            id: currentUser.id,
-            email: currentUser.email,
-            full_name: currentUser.user_metadata.full_name,
-            avatar_url: currentUser.user_metadata.avatar_url,
-          });
-        }
-      })
-      .catch(() => {
-        // User not logged in, that's fine
-      });
-  }, [setUser]);
-
-  const handleSignOut = async () => {
-    await signOut();
-    setUser(null);
-  };
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -60,9 +38,11 @@ export default function Navigation() {
                 <Link href="/orders" className="text-sm font-medium hover:text-primary transition-colors">
                   Orders
                 </Link>
-                <Link href="/admin" className="text-sm font-medium hover:text-primary transition-colors">
-                  Admin
-                </Link>
+                {isAdmin && (
+                  <Link href="/admin" className="text-sm font-medium hover:text-primary transition-colors">
+                    Admin
+                  </Link>
+                )}
               </>
             )}
           </div>
@@ -105,7 +85,7 @@ export default function Navigation() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={handleSignOut}
+                  onClick={signOut}
                   title="Sign out"
                 >
                   <LogOut className="h-5 w-5" />
@@ -167,13 +147,15 @@ export default function Navigation() {
                 >
                   Orders
                 </Link>
-                <Link
-                  href="/admin"
-                  className="block text-sm font-medium hover:text-primary transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Admin
-                </Link>
+                {isAdmin && (
+                  <Link
+                    href="/admin"
+                    className="block text-sm font-medium hover:text-primary transition-colors"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Admin
+                  </Link>
+                )}
               </>
             )}
             <div className="flex items-center space-x-4 pt-4 border-t">
@@ -191,7 +173,7 @@ export default function Navigation() {
                 </Button>
               </Link>
               {user ? (
-                <Button variant="ghost" onClick={handleSignOut}>
+                <Button variant="ghost" onClick={signOut}>
                   <LogOut className="h-4 w-4 mr-2" />
                   Sign Out
                 </Button>

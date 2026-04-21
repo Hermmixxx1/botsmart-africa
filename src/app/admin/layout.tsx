@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Package, ShoppingBag, DollarSign, Users, Settings, LayoutDashboard, FileText, UserPlus, LogOut, Star } from 'lucide-react';
+import { Package, ShoppingBag, Users, Settings, LayoutDashboard, FileText, UserPlus, LogOut, Star, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { getCurrentUser } from '@/lib/auth';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function AdminLayout({
   children,
@@ -14,53 +13,33 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-
-  const checkAuth = useCallback(async () => {
-    try {
-      const user = await getCurrentUser();
-      
-      if (!user) {
-        router.push('/auth?redirect=/admin');
-        return;
-      }
-
-      // Check if user is admin by checking admin_users table
-      const response = await fetch('/api/auth/check-admin');
-      const data = await response.json();
-      
-      if (!data.isAdmin) {
-        router.push('/?error=not_admin');
-        return;
-      }
-
-      setLoading(false);
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      router.push('/auth?redirect=/admin');
-    }
-  }, [router]);
+  const { user, isLoading, isAdmin, signOut } = useAuth();
 
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
-
-  const handleSignOut = async () => {
-    try {
-      await fetch('/api/auth/signout', { method: 'POST' });
-      router.push('/auth');
-      router.refresh();
-    } catch (error) {
-      console.error('Sign out failed:', error);
+    // Redirect if not logged in or not admin
+    if (!isLoading) {
+      if (!user) {
+        router.push('/auth?redirect=/admin');
+      } else if (!isAdmin) {
+        router.push('/?error=not_admin');
+      }
     }
-  };
+  }, [user, isLoading, isAdmin, router]);
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+      </div>
+    );
+  }
+
+  if (!user || !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-purple-600 mx-auto mb-4" />
+          <p className="text-gray-600">Checking permissions...</p>
         </div>
       </div>
     );
@@ -119,17 +98,12 @@ export default function AdminLayout({
                     Pages
                   </Button>
                 </Link>
-                <Link href="/admin/reviews">
-                  <Button variant="ghost" size="sm">
-                    <Star className="mr-2 h-4 w-4" />
-                    Reviews
-                  </Button>
-                </Link>
               </div>
             </div>
 
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm" onClick={handleSignOut}>
+              <span className="text-sm text-gray-500">{user.email}</span>
+              <Button variant="ghost" size="sm" onClick={signOut}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign Out
               </Button>
