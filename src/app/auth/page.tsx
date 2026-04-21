@@ -13,18 +13,10 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { useStore } from '@/store/useStore';
 import { useToast } from '@/lib/use-toast';
 
-// Get Supabase credentials from environment
+// Get Supabase credentials from environment (NEXT_PUBLIC_ works on both client and server)
 const getSupabaseCredentials = () => {
-  let url = (typeof window !== 'undefined' && (window as any).__SUPABASE_URL__) || '';
-  let key = (typeof window !== 'undefined' && (window as any).__SUPABASE_ANON_KEY__) || '';
-  
-  if (!url) {
-    url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  }
-  if (!key) {
-    key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  }
-  
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.COZE_SUPABASE_URL || '';
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.COZE_SUPABASE_ANON_KEY || '';
   return { url, key };
 };
 

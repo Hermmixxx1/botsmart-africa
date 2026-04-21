@@ -63,17 +63,19 @@ except Exception as e:
 function getSupabaseCredentials(): SupabaseCredentials {
   loadEnv();
 
+  // NEXT_PUBLIC_ variables are available on both client and server (embedded at build time)
+  // COZE_ variables are loaded at runtime from the environment
   let url: string | undefined;
   let anonKey: string | undefined;
 
-  // Check window variables first (set by SupabaseProvider on client)
-  if (typeof window !== 'undefined') {
-    url = (window as any).__SUPABASE_URL__ || process.env.COZE_SUPABASE_URL;
-    anonKey = (window as any).__SUPABASE_ANON_KEY__ || process.env.COZE_SUPABASE_ANON_KEY;
+  // Server-side: check COZE_ variables first, then NEXT_PUBLIC_
+  if (typeof window === 'undefined') {
+    url = process.env.COZE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    anonKey = process.env.COZE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   } else {
-    // Server-side
-    url = process.env.COZE_SUPABASE_URL;
-    anonKey = process.env.COZE_SUPABASE_ANON_KEY;
+    // Client-side: check window variables first (runtime), then NEXT_PUBLIC_ (build-time)
+    url = (window as any).__SUPABASE_URL__ || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.COZE_SUPABASE_URL;
+    anonKey = (window as any).__SUPABASE_ANON_KEY__ || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.COZE_SUPABASE_ANON_KEY;
   }
 
   if (!url) {

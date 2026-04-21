@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import './globals.css';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
-import { SupabaseInit } from '@/components/SupabaseInit';
 
 export const metadata: Metadata = {
   title: {
@@ -32,7 +31,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased min-h-screen bg-background flex flex-col">
-        <SupabaseInit />
         <Navigation />
         <main className="flex-1">
           {children}
