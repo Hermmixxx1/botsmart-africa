@@ -30,8 +30,24 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const supabaseUrl = process.env.COZE_SUPABASE_URL || '';
+  const supabaseAnonKey = process.env.COZE_SUPABASE_ANON_KEY || '';
+
   return (
     <html lang="en">
+      <head>
+        {/* Inline script to set Supabase config before React hydrates */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                window.__SUPABASE_URL__ = '${supabaseUrl}';
+                window.__SUPABASE_ANON_KEY__ = '${supabaseAnonKey}';
+              } catch(e) {}
+            `,
+          }}
+        />
+      </head>
       <body className="antialiased min-h-screen bg-background flex flex-col">
         <SupabaseProvider />
         <Navigation />

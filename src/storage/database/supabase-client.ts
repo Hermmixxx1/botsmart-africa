@@ -63,8 +63,18 @@ except Exception as e:
 function getSupabaseCredentials(): SupabaseCredentials {
   loadEnv();
 
-  const url = process.env.COZE_SUPABASE_URL;
-  const anonKey = process.env.COZE_SUPABASE_ANON_KEY;
+  let url: string | undefined;
+  let anonKey: string | undefined;
+
+  // Check window variables first (set by SupabaseProvider on client)
+  if (typeof window !== 'undefined') {
+    url = (window as any).__SUPABASE_URL__ || process.env.COZE_SUPABASE_URL;
+    anonKey = (window as any).__SUPABASE_ANON_KEY__ || process.env.COZE_SUPABASE_ANON_KEY;
+  } else {
+    // Server-side
+    url = process.env.COZE_SUPABASE_URL;
+    anonKey = process.env.COZE_SUPABASE_ANON_KEY;
+  }
 
   if (!url) {
     throw new Error('COZE_SUPABASE_URL is not set');
