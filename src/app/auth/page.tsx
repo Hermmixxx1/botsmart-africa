@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense, useEffect, useRef } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -9,28 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertCircle, CheckCircle, Loader2, Mail, Phone, ArrowLeft, Eye, EyeOff, Shield, Users, Store } from 'lucide-react';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import { useStore } from '@/store/useStore';
 import { useToast } from '@/lib/use-toast';
-
-interface SupabaseConfig {
-  supabaseUrl: string;
-  supabaseAnonKey: string;
-}
-
-async function fetchConfig(): Promise<SupabaseConfig | null> {
-  try {
-    const response = await fetch('/api/config', {
-      credentials: 'include',
-    });
-    if (response.ok) {
-      return await response.json();
-    }
-  } catch (error) {
-    console.error('Failed to fetch config:', error);
-  }
-  return null;
-}
 
 function AuthContent() {
   const router = useRouter();
@@ -39,98 +20,53 @@ function AuthContent() {
   const type = searchParams.get('type');
   const { setUser } = useStore();
   const { toast } = useToast();
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
+  const [supabaseUrl, setSupabaseUrl] = useState<string>('');
+  const [supabaseAnonKey, setSupabaseAnonKey] = useState<string>('');
+  const [supabase, setSupabase] = useState<any>(null);
   const [credentialsError, setCredentialsError] = useState('');
   const [emailNotVerified, setEmailNotVerified] = useState(false);
   const [pendingEmail, setPendingEmail] = useState('');
   const [resendLoading, setResendLoading] = useState(false);
   const [verificationLoading, setVerificationLoading] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Initialize Supabase on mount
   useEffect(() => {
-    let mounted = true;
-    let retryCount = 0;
-    const maxRetries = 3;
-
-    async function initSupabase() {
-      try {
-        const config = await fetchConfig();
-        if (!mounted) return;
-
-        if (config?.supabaseUrl && config?.supabaseAnonKey) {
-          try {
-            const client = createClient(config.supabaseUrl, config.supabaseAnonKey, {
-              auth: {
-                persistSession: true,
-                storageKey: 'supabase-auth',
-                autoRefreshToken: true,
-              },
-            });
-            if (mounted) {
-              setSupabase(client);
-              setIsInitializing(false);
-            }
-          } catch (err) {
-            if (mounted) {
-              setCredentialsError('Failed to initialize authentication. Please refresh.');
-              setIsInitializing(false);
-            }
-          }
-        } else {
-          retryCount++;
-          if (retryCount < maxRetries && mounted) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            initSupabase();
-          } else if (mounted) {
-            setCredentialsError('Supabase credentials not available. Please refresh the page.');
-            setIsInitializing(false);
-          }
-        }
-      } catch (err) {
-        retryCount++;
-        if (retryCount < maxRetries && mounted) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          initSupabase();
-        } else if (mounted) {
-          setCredentialsError('Failed to connect. Please refresh the page.');
-          setIsInitializing(false);
-        }
-      }
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    
+    if (url && key) {
+      setSupabaseUrl(url);
+      setSupabaseAnonKey(key);
+      const client = createClient(url, key, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+        },
+      });
+      setSupabase(client);
+    } else {
+      setCredentialsError('Supabase credentials not configured');
     }
-
-    initSupabase();
-
-    initTimeoutRef.current = setTimeout(() => {
-      if (mounted && !supabase) {
-        setCredentialsError('Connection timed out. Please refresh the page.');
-        setIsInitializing(false);
-      }
-    }, 15000);
-
-    return () => {
-      mounted = false;
-      if (initTimeoutRef.current) {
-        clearTimeout(initTimeoutRef.current);
-      }
-    };
   }, []);
 
+  // Check for email confirmation
   useEffect(() => {
-    if (supabase && type) {
-      handleEmailCallback(type);
+    if (supabase && type === 'confirmation') {
+      handleEmailCallback();
     }
   }, [supabase, type]);
 
-  const handleEmailCallback = async (tokenType: string) => {
+  const handleEmailCallback = async () => {
+    if (!supabase) return;
     setVerificationLoading(true);
     try {
-      const { data, error } = await supabase!.auth.getSession();
+      const { data, error } = await supabase.auth.getSession();
       if (error) throw error;
 
       if (data.session?.user?.email_confirmed_at) {
@@ -153,7 +89,7 @@ function AuthContent() {
     } catch (err: any) {
       toast({
         title: "Verification Failed",
-        description: err.message || "Could not verify email. Please try signing in.",
+        description: err.message || "Could not verify email.",
         variant: "destructive",
       });
     } finally {
@@ -177,7 +113,7 @@ function AuthContent() {
     } catch (err: any) {
       toast({
         title: "Error",
-        description: err.message || "Failed to resend confirmation email.",
+        description: err.message || "Failed to resend email.",
         variant: "destructive",
       });
     } finally {
@@ -299,13 +235,10 @@ function AuthContent() {
     setError('');
     setResetLoading(true);
     try {
-      const response = await fetch('/api/auth/password-reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: resetEmail }),
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/auth/callback`,
       });
-      const data = await response.json();
-      if (!response.ok) throw Error(data.error || 'Failed to send reset email');
+      if (error) throw error;
       setResetSent(true);
       toast({
         title: "Reset Email Sent",
@@ -374,7 +307,7 @@ function AuthContent() {
     );
   }
 
-  if (isInitializing || !supabase) {
+  if (!supabase) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
