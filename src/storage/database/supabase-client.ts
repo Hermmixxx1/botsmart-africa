@@ -9,17 +9,19 @@ function getSupabaseCredentials(): SupabaseCredentials | null {
   // Check various possible env var names for compatibility
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 
               process.env.SUPABASE_URL || 
-              process.env.COZE_SUPABASE_URL;
+              process.env.COZE_SUPABASE_URL ||
+              process.env.NEXT_PUBLIC_COZE_SUPABASE_URL;
   
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
                    process.env.SUPABASE_ANON_KEY || 
-                   process.env.COZE_SUPABASE_ANON_KEY;
+                   process.env.COZE_SUPABASE_ANON_KEY ||
+                   process.env.NEXT_PUBLIC_COZE_SUPABASE_ANON_KEY;
 
   if (!url || !anonKey) {
     console.error('Missing Supabase credentials:', { 
       hasUrl: !!url, 
       hasKey: !!anonKey,
-      urlEnv: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      envUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
       cozeUrl: process.env.COZE_SUPABASE_URL
     });
     return null;
@@ -31,7 +33,8 @@ function getSupabaseCredentials(): SupabaseCredentials | null {
 function getSupabaseServiceRoleKey(): string | undefined {
   return process.env.SUPABASE_SERVICE_ROLE_KEY || 
          process.env.COZE_SUPABASE_SERVICE_ROLE_KEY ||
-         process.env.SERVICE_ROLE_KEY;
+         process.env.SERVICE_ROLE_KEY ||
+         process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
 }
 
 export function getSupabaseClient(token?: string): SupabaseClient | null {

@@ -5,6 +5,14 @@ import { getSupabase } from '@/storage/database/supabase-client';
 export async function GET(request: NextRequest) {
   try {
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json(
+        { error: 'Database not configured' },
+        { status: 500 }
+      );
+    }
+    
     const { searchParams } = new URL(request.url);
 
     const categoryId = searchParams.get('category_id');
