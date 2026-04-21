@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
-import { getUserPermissions } from '@/lib/rbac';
+import { getCurrentUser, getUserPermissions } from '@/lib/auth';
 
 // GET /api/auth/check-admin - Check if current user is an admin
 export async function GET() {
