@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -8,13 +8,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertCircle, CheckCircle, Loader2, Phone, Timer } from 'lucide-react';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { useToast } from '@/lib/use-toast';
 
-const getSupabaseCredentials = () => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.COZE_SUPABASE_URL || '';
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.COZE_SUPABASE_ANON_KEY || '';
-  return { url, key };
-};
+interface SupabaseConfig {
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+}
+
+async function fetchConfig(): Promise<SupabaseConfig | null> {
+  try {
+    const response = await fetch('/api/config');
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (error) {
+    console.error('Failed to fetch config:', error);
+  }
+  return null;
+}
 
 function VerifyPhoneContent() {
   const router = useRouter();
@@ -30,17 +42,35 @@ function VerifyPhoneContent() {
   const [countdown, setCountdown] = useState(60);
   const [error, setError] = useState('');
   const [verified, setVerified] = useState(false);
+  const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
+
+  // Initialize Supabase
+  useEffect(() => {
+    async function initSupabase() {
+      const config = await fetchConfig();
+      if (config?.supabaseUrl && config?.supabaseAnonKey) {
+        const client = createClient(config.supabaseUrl, config.supabaseAnonKey);
+        setSupabase(client);
+      }
+    }
+    initSupabase();
+  }, []);
 
   // Countdown timer
-  useState(() => {
+  useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
     }
-  });
+  }, [countdown]);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!supabase) {
+      setError('Authentication not ready. Please wait...');
+      return;
+    }
     
     if (!otp || otp.length < 6) {
       setError('Please enter the 6-digit code');
@@ -51,18 +81,14 @@ function VerifyPhoneContent() {
     setError('');
 
     try {
-      const { url, key } = getSupabaseCredentials();
-      
-      const response = await fetch('/api/auth/verify-phone', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, token, otp }),
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone,
+        token: otp,
+        type: 'sms',
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw Error(data.error || 'Verification failed');
+      if (error) {
+        throw error;
       }
 
       setVerified(true);
@@ -82,21 +108,17 @@ function VerifyPhoneContent() {
   };
 
   const handleResendCode = async () => {
+    if (!supabase) return;
+    
     setResendLoading(true);
     setCountdown(60);
 
     try {
-      const response = await fetch('/api/auth/resend-phone-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone }),
+      const { error } = await supabase.auth.signInWithOtp({
+        phone,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw Error(data.error || 'Failed to resend code');
-      }
+      if (error) throw error;
 
       toast({
         title: "Code Sent",

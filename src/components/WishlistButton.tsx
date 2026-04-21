@@ -4,7 +4,24 @@ import { useState, useEffect } from "react";
 import { Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/lib/use-toast";
-import { getSupabaseClient } from "@/storage/database/supabase-client";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
+
+interface SupabaseConfig {
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+}
+
+async function fetchConfig(): Promise<SupabaseConfig | null> {
+  try {
+    const response = await fetch('/api/config');
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (error) {
+    console.error('Failed to fetch config:', error);
+  }
+  return null;
+}
 
 interface WishlistButtonProps {
   productId: string;
@@ -23,7 +40,7 @@ export function WishlistButton({
   const [isLoading, setIsLoading] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
   const { toast } = useToast();
-  const supabase = getSupabaseClient();
+  const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
 
   const iconSizes = {
     sm: 16,
@@ -31,6 +48,19 @@ export function WishlistButton({
     lg: 24,
   };
 
+  // Initialize Supabase client
+  useEffect(() => {
+    async function initSupabase() {
+      const config = await fetchConfig();
+      if (config?.supabaseUrl && config?.supabaseAnonKey) {
+        const client = createClient(config.supabaseUrl, config.supabaseAnonKey);
+        setSupabase(client);
+      }
+    }
+    initSupabase();
+  }, []);
+
+  // Check wishlist status when supabase is ready
   useEffect(() => {
     if (supabase) {
       checkWishlist();
@@ -38,10 +68,8 @@ export function WishlistButton({
   }, [productId, supabase]);
 
   const checkWishlist = async () => {
-    if (!supabase) {
-      setIsChecking(false);
-      return;
-    }
+    if (!supabase) return;
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -80,50 +108,45 @@ export function WishlistButton({
 
       if (authError || !user) {
         toast({
-          title: "Login Required",
-          description: "Please login to add items to your wishlist",
+          title: "Please sign in",
+          description: "You need to sign in to add items to your wishlist",
         });
         return;
       }
 
       if (isInWishlist) {
         // Remove from wishlist
-        const response = await fetch(`/api/wishlist?product_id=${productId}`, {
-          method: "DELETE",
-        });
+        const { error } = await supabase
+          .from("wishlists")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("product_id", productId);
 
-        if (!response.ok) {
-          throw new Error("Failed to remove from wishlist");
-        }
+        if (error) throw error;
 
         setIsInWishlist(false);
         toast({
-          title: "Removed",
-          description: "Item removed from your wishlist",
+          title: "Removed from wishlist",
+          description: "Item has been removed from your wishlist",
         });
       } else {
         // Add to wishlist
-        const response = await fetch("/api/wishlist", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ product_id: productId }),
-        });
+        const { error } = await supabase
+          .from("wishlists")
+          .insert({ user_id: user.id, product_id: productId });
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to add to wishlist");
-        }
+        if (error) throw error;
 
         setIsInWishlist(true);
         toast({
-          title: "Added!",
-          description: "Item added to your wishlist",
+          title: "Added to wishlist",
+          description: "Item has been added to your wishlist",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Something went wrong",
+        description: error.message || "Failed to update wishlist",
         variant: "destructive",
       });
     } finally {
@@ -135,12 +158,13 @@ export function WishlistButton({
     return (
       <button
         className={cn(
-          "p-2 rounded-full bg-muted/50 animate-pulse",
+          "flex items-center gap-1.5 text-muted-foreground",
           className
         )}
         disabled
       >
-        <Heart size={iconSizes[size]} className="text-muted" />
+        <Heart className={cn("animate-pulse", iconSizes[size] === 16 && "h-4 w-4")} />
+        {showText && <span className="text-sm">Loading...</span>}
       </button>
     );
   }
@@ -150,25 +174,22 @@ export function WishlistButton({
       onClick={toggleWishlist}
       disabled={isLoading}
       className={cn(
-        "flex items-center gap-2 rounded-full transition-all",
-        isInWishlist
-          ? "bg-red-50 text-red-500 hover:bg-red-100"
-          : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
-        isLoading && "opacity-50 cursor-not-allowed",
+        "flex items-center gap-1.5 transition-colors",
+        isInWishlist ? "text-red-500" : "text-muted-foreground hover:text-foreground",
         className
       )}
     >
       <Heart
-        size={iconSizes[size]}
         className={cn(
-          "transition-transform",
-          isInWishlist && "fill-current scale-110",
-          !isInWishlist && "hover:scale-110"
+          iconSizes[size] === 16 && "h-4 w-4",
+          iconSizes[size] === 20 && "h-5 w-5",
+          iconSizes[size] === 24 && "h-6 w-6",
+          isInWishlist && "fill-current"
         )}
       />
       {showText && (
-        <span className="text-sm font-medium pr-2">
-          {isInWishlist ? "Wishlisted" : "Add to Wishlist"}
+        <span className="text-sm">
+          {isInWishlist ? "In Wishlist" : "Add to Wishlist"}
         </span>
       )}
     </button>

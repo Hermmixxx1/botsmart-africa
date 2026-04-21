@@ -13,18 +13,29 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { useStore } from '@/store/useStore';
 import { useToast } from '@/lib/use-toast';
 
-// Get Supabase credentials from environment (NEXT_PUBLIC_ works on both client and server)
-const getSupabaseCredentials = () => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.COZE_SUPABASE_URL || '';
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.COZE_SUPABASE_ANON_KEY || '';
-  return { url, key };
-};
+interface SupabaseConfig {
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+}
+
+// Fetch Supabase config from server
+async function fetchConfig(): Promise<SupabaseConfig | null> {
+  try {
+    const response = await fetch('/api/config');
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (error) {
+    console.error('Failed to fetch config:', error);
+  }
+  return null;
+}
 
 function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/admin';
-  const type = searchParams.get('type'); // 'signup' or 'recovery' or 'email_change' or 'invite'
+  const type = searchParams.get('type');
   const { setUser } = useStore();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -36,28 +47,33 @@ function AuthContent() {
   const [resendLoading, setResendLoading] = useState(false);
   const [verificationLoading, setVerificationLoading] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
+  const [configLoaded, setConfigLoaded] = useState(false);
 
-  // Initialize Supabase client after mount
+  // Initialize Supabase client after mounting
   useEffect(() => {
-    const { url, key } = getSupabaseCredentials();
-    
-    if (url && key) {
-      try {
-        const client = createClient(url, key, {
-          auth: {
-            persistSession: true,
-            storageKey: 'supabase-auth',
-            autoRefreshToken: true,
-          },
-        });
-        setSupabase(client);
-      } catch (err) {
-        console.error('Failed to create Supabase client:', err);
-        setCredentialsError('Failed to initialize authentication. Please refresh the page.');
+    async function initSupabase() {
+      const config = await fetchConfig();
+      
+      if (config?.supabaseUrl && config?.supabaseAnonKey) {
+        try {
+          const client = createClient(config.supabaseUrl, config.supabaseAnonKey, {
+            auth: {
+              persistSession: true,
+              storageKey: 'supabase-auth',
+              autoRefreshToken: true,
+            },
+          });
+          setSupabase(client);
+          setConfigLoaded(true);
+        } catch (err) {
+          console.error('Failed to create Supabase client:', err);
+          setCredentialsError('Failed to initialize authentication.');
+        }
+      } else {
+        setCredentialsError('Supabase credentials not configured. Please contact support.');
       }
-    } else {
-      setCredentialsError('Configuration error. Supabase credentials are missing.');
     }
+    initSupabase();
   }, []);
 
   // Check if user is coming from an email confirmation link
@@ -76,14 +92,12 @@ function AuthContent() {
         throw error;
       }
 
-      // Check if email is now confirmed
       if (data.session?.user?.email_confirmed_at) {
         setEmailVerified(true);
         toast({
           title: "Email Verified!",
           description: "Your email has been verified successfully.",
         });
-        // Auto sign in after verification
         setUser({
           id: data.session.user.id,
           email: data.session.user.email || '',
@@ -175,7 +189,6 @@ function AuthContent() {
         throw Error(signInError.message);
       }
 
-      // Check if email is confirmed
       if (!data.user?.email_confirmed_at) {
         setEmailNotVerified(true);
         setPendingEmail(signInData.email);
@@ -253,7 +266,6 @@ function AuthContent() {
         avatar_url: data.user!.user_metadata?.avatar_url,
       });
 
-      // Check if email confirmation is needed
       if (!data.user?.email_confirmed_at) {
         setEmailNotVerified(true);
         setPendingEmail(signUpData.email);
@@ -381,7 +393,6 @@ function AuthContent() {
           <p className="mt-2 text-gray-600">Southern Africa&apos;s Premier Multi-Vendor Marketplace</p>
         </div>
 
-        {/* Email Verification Notice */}
         {emailNotVerified && (
           <Card className="border-yellow-500 bg-yellow-50">
             <CardContent className="pt-6">
@@ -557,7 +568,6 @@ function AuthContent() {
                 </form>
               </TabsContent>
 
-              {/* Password Reset Tab */}
               <TabsContent value="reset">
                 {resetSent ? (
                   <div className="text-center py-6">
