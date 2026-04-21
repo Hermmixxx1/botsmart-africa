@@ -46,13 +46,17 @@ export async function POST() {
     }
 
     // Check if admin_roles table exists and has the super_admin role
-    const { data: roleData, error: roleError } = await supabase
+    let superAdminRoleId: string | null = null;
+    
+    const { data: roleData } = await supabase
       .from('admin_roles')
       .select('id')
       .eq('name', 'super_admin')
       .single();
 
-    if (roleError || !roleData) {
+    if (roleData) {
+      superAdminRoleId = roleData.id;
+    } else {
       // If no roles exist, create the super_admin role first
       const { error: insertRoleError } = await supabase
         .from('admin_roles')
@@ -83,7 +87,7 @@ export async function POST() {
         return NextResponse.json({ error: 'Failed to create admin role' }, { status: 500 });
       }
 
-      roleData.id = newRole.id;
+      superAdminRoleId = newRole.id;
     }
 
     // Create the admin user record
@@ -91,7 +95,7 @@ export async function POST() {
       .from('admin_users')
       .insert({
         user_id: userId,
-        role_id: roleData.id,
+        role_id: superAdminRoleId,
         is_active: true,
       });
 
