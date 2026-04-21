@@ -114,24 +114,46 @@ export async function signOut() {
   if (error) throw new Error(`Sign out failed: ${error.message}`);
 }
 
-// Get permissions for a user
+// Get permissions for a user (uses service role to bypass RLS)
 export async function getUserPermissions(userId: string) {
-  const client = getSupabaseClient();
+  // Use service role key to bypass RLS
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.COZE_SUPABASE_URL;
+  const serviceKey = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
   
-  if (!client) {
-    return null;
+  if (!url || !serviceKey) {
+    // Fallback to anon key if service key not available
+    const client = getSupabaseClient();
+    if (!client) return null;
+    
+    try {
+      const { data, error } = await client
+        .from('admin_users')
+        .select('*, admin_roles(*)')
+        .eq('user_id', userId)
+        .single();
+      
+      if (error || !data) return null;
+      
+      return {
+        isAdmin: true,
+        role: data.admin_roles?.name || 'admin',
+        permissions: data.admin_roles?.permissions || [],
+      };
+    } catch {
+      return null;
+    }
   }
-  
+
   try {
-    const { data, error } = await client
+    const adminClient = createClient(url, serviceKey);
+    
+    const { data, error } = await adminClient
       .from('admin_users')
       .select('*, admin_roles(*)')
       .eq('user_id', userId)
       .single();
     
-    if (error || !data) {
-      return null;
-    }
+    if (error || !data) return null;
     
     return {
       isAdmin: true,

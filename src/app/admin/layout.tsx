@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Package, ShoppingBag, DollarSign, Users, Settings, LayoutDashboard, FileText, UserPlus, LogOut, Star } from 'lucide-react';
@@ -16,11 +16,7 @@ export default function AdminLayout({
   const router = useRouter();
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       const user = await getCurrentUser();
       
@@ -43,7 +39,11 @@ export default function AdminLayout({
       console.error('Auth check failed:', error);
       router.push('/auth?redirect=/admin');
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
 
   const handleSignOut = async () => {
     try {
