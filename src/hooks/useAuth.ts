@@ -170,15 +170,15 @@ export function useAuth(): UseAuthReturn {
   // Check admin status via API
   const checkAdminStatus = useCallback(async (): Promise<boolean> => {
     try {
-      // Get session to pass JWT token
       const supabase = await initSupabaseClient();
       if (!supabase) return false;
       
+      // Get session and pass JWT token
       const { data: { session } } = await supabase.auth.getSession();
       
       const response = await fetch('/api/auth/check-admin', {
         headers: {
-          'Authorization': `Bearer ${session?.access_token || ''}`,
+          Authorization: `Bearer ${session?.access_token}`,
         },
       });
       const data = await response.json();

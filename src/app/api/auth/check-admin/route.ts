@@ -2,11 +2,11 @@
  * Check Admin Status API
  * GET /api/auth/check-admin
  * 
- * Accepts JWT token from Authorization header
+ * Receives JWT token from Authorization header
  */
 
 import { NextResponse } from 'next/server';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
 // Helper to get env vars
 function getEnv() {
@@ -21,37 +21,6 @@ function getEnv() {
   };
 }
 
-// Get admin client with optional JWT token
-function getAdminClient(jwtToken?: string): SupabaseClient | null {
-  const { url, serviceKey, anonKey } = getEnv();
-  
-  if (!url || !anonKey) {
-    return null;
-  }
-
-  // Use service role key if available (for checking admin table)
-  // Otherwise use anon key with JWT
-  const key = serviceKey || anonKey;
-  
-  const client = createClient(url, key, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-
-  // If we have a JWT, set it
-  if (jwtToken) {
-    // Set the session with the provided JWT
-    client.auth.setSession({
-      access_token: jwtToken,
-      refresh_token: '',
-    });
-  }
-
-  return client;
-}
-
 export async function GET(request: Request) {
   try {
     const { url, anonKey, serviceKey } = getEnv();
@@ -64,20 +33,22 @@ export async function GET(request: Request) {
     }
 
     // Get JWT token from Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const jwtToken = authHeader?.replace('Bearer ', '');
+    const token = request.headers.get('authorization')?.replace('Bearer ', '');
 
-    // Create client with JWT
-    const supabase = getAdminClient(jwtToken || undefined);
-    
-    if (!supabase) {
-      return NextResponse.json({ 
-        isAdmin: false, 
-        error: 'Failed to create client' 
-      }, { status: 500 });
-    }
+    // Create client with JWT token in global headers
+    const supabase = createClient(url, anonKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    });
 
-    // Get user from the session/JWT
+    // Get user from the JWT
     const { data: { user }, error } = await supabase.auth.getUser();
 
     if (error || !user) {
@@ -87,9 +58,7 @@ export async function GET(request: Request) {
       }, { status: 401 });
     }
 
-    // Now check if user is admin
-    // If we have service key, use it for admin table query
-    // Otherwise, just return that user is authenticated (not admin)
+    // Check if user is admin using service role client
     if (serviceKey) {
       const adminClient = createClient(url, serviceKey);
       
@@ -118,14 +87,12 @@ export async function GET(request: Request) {
       });
     }
 
-    // No service key - just return authenticated (not admin)
     return NextResponse.json({
       isAdmin: false,
       user: {
         id: user.id,
         email: user.email,
       },
-      message: 'Service key not configured for admin check',
     });
 
   } catch (error) {
