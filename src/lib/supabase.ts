@@ -8,7 +8,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 
 // Environment variable helper
-function getSupabaseEnv() {
+export function getSupabaseEnv() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 
               process.env.COZE_SUPABASE_URL ||
               process.env.SUPABASE_URL;
@@ -29,12 +29,9 @@ let browserClient: SupabaseClient | null = null;
 
 /**
  * Get Supabase client for browser/client-side usage
- * Uses window object to detect browser environment
  */
 export function getSupabaseClient(): SupabaseClient | null {
   if (typeof window === 'undefined') {
-    // Server-side - use createServerClient instead
-    console.warn('getSupabaseClient() called on server. Use createSupabaseServerClient() instead.');
     return null;
   }
 
@@ -43,7 +40,6 @@ export function getSupabaseClient(): SupabaseClient | null {
   const { url, anonKey } = getSupabaseEnv();
   
   if (!url || !anonKey) {
-    console.error('Missing Supabase environment variables');
     return null;
   }
 
@@ -51,7 +47,6 @@ export function getSupabaseClient(): SupabaseClient | null {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      storageKey: 'supabase-auth', // Custom storage key to avoid conflicts
     },
   });
 
@@ -60,7 +55,6 @@ export function getSupabaseClient(): SupabaseClient | null {
 
 /**
  * Create Supabase server client for middleware and API routes
- * Properly handles cookies for SSR
  */
 export function createSupabaseServerClient(
   cookies: {
@@ -90,7 +84,6 @@ export function createSupabaseServerClient(
 
 /**
  * Get service role client for admin operations (bypasses RLS)
- * ONLY use on server-side, NEVER expose to client
  */
 export function getSupabaseAdminClient(): SupabaseClient | null {
   const { url, serviceKey } = getSupabaseEnv();

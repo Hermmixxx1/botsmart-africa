@@ -1,17 +1,16 @@
 /**
  * AuthProvider Component
  * Provides authentication context to the entire app
- * Uses useAuth hook for centralized auth state management
  */
 
 'use client';
 
-import { useAuth } from '@/hooks/useAuth';
+import { ReactNode } from 'react';
 
-export default function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Initialize auth - this sets up listeners and syncs state
-  // The useAuth hook handles all auth state management
-  useAuth();
-
+export default function AuthProvider({ children }: { children: ReactNode }) {
+  // The useAuth hook in each component handles initialization
+  // This provider just wraps children
+  // Auth state is managed globally through the hook's singleton pattern
+  
   return <>{children}</>;
 }

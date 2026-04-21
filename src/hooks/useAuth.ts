@@ -1,21 +1,12 @@
 /**
  * useAuth Hook - Single Source of Truth for Authentication
- * 
- * This hook provides:
- * - User state (logged in/out)
- * - Loading state
- * - Admin check
- * - Sign in/out functions
- * 
- * Usage:
- * const { user, isLoading, isAdmin, signIn, signOut } = useAuth();
  */
 
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSupabaseClient, getSupabaseAdminClient } from '@/lib/supabase';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 export interface AuthUser {
   id: string;
@@ -36,60 +27,122 @@ export interface UseAuthReturn {
   checkAdminStatus: () => Promise<boolean>;
 }
 
+// Client-side singleton
+let supabaseClient: SupabaseClient | null = null;
+let clientInitPromise: Promise<SupabaseClient | null> | null = null;
+
+/**
+ * Initialize Supabase client with fallback to config API
+ */
+async function initSupabaseClient(): Promise<SupabaseClient | null> {
+  if (typeof window === 'undefined') return null;
+  if (supabaseClient) return supabaseClient;
+  if (clientInitPromise) return clientInitPromise;
+
+  clientInitPromise = (async () => {
+    // Try direct environment variables first
+    let url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    let key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    // If URL not available, fetch from config API
+    if (!url) {
+      try {
+        const response = await fetch('/api/config', { 
+          credentials: 'include',
+          cache: 'no-store'
+        });
+        if (response.ok) {
+          const config = await response.json();
+          url = url || config.supabaseUrl;
+          key = key || config.supabaseAnonKey;
+        }
+      } catch (e) {
+        console.log('Config API not available');
+      }
+    }
+
+    if (!url || !key) {
+      console.error('Supabase credentials not found:', { url: !!url, key: !!key });
+      return null;
+    }
+
+    supabaseClient = createClient(url, key, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+    });
+
+    return supabaseClient;
+  })();
+
+  return clientInitPromise;
+}
+
 export function useAuth(): UseAuthReturn {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
+  const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
 
   // Initialize and listen for auth changes
   useEffect(() => {
-    const supabase = getSupabaseClient();
-    
-    if (!supabase) {
-      setIsLoading(false);
-      return;
-    }
+    let mounted = true;
 
-    // Initial session check
     const initAuth = async () => {
       try {
+        const supabase = await initSupabaseClient();
+        
+        if (!supabase) {
+          if (mounted) setIsLoading(false);
+          return;
+        }
+
+        // Initial session check
         const { data: { session } } = await supabase.auth.getSession();
         
-        if (session?.user) {
+        if (session?.user && mounted) {
           setUserFromSession(session.user);
-          await checkAdminStatus(session.user.id);
-        } else {
+          await checkAdminStatus();
+        } else if (mounted) {
           setUser(null);
           setIsAdmin(false);
           setIsSeller(false);
+          setIsLoading(false);
         }
+
+        // Listen for auth state changes
+        if (mounted) {
+          subscriptionRef.current = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (!mounted) return;
+            
+            if (event === 'SIGNED_IN' && session?.user) {
+              setUserFromSession(session.user);
+              await checkAdminStatus();
+            } else if (event === 'SIGNED_OUT') {
+              setUser(null);
+              setIsAdmin(false);
+              setIsSeller(false);
+            }
+          }).data.subscription;
+        }
+
+        if (mounted) setIsLoading(false);
       } catch (error) {
         console.error('Auth init error:', error);
-      } finally {
-        setIsLoading(false);
+        if (mounted) setIsLoading(false);
       }
     };
 
     initAuth();
 
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        setUserFromSession(session.user);
-        await checkAdminStatus(session.user.id);
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setIsAdmin(false);
-        setIsSeller(false);
-      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-        setUserFromSession(session.user);
-      }
-    });
-
     return () => {
-      subscription.unsubscribe();
+      mounted = false;
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+      }
     };
   }, []);
 
@@ -104,7 +157,7 @@ export function useAuth(): UseAuthReturn {
   };
 
   // Check admin status via API
-  const checkAdminStatus = useCallback(async (userId?: string): Promise<boolean> => {
+  const checkAdminStatus = useCallback(async (): Promise<boolean> => {
     try {
       const response = await fetch('/api/auth/check-admin');
       const data = await response.json();
@@ -121,7 +174,7 @@ export function useAuth(): UseAuthReturn {
 
   // Sign in
   const signIn = useCallback(async (email: string, password: string) => {
-    const supabase = getSupabaseClient();
+    const supabase = await initSupabaseClient();
     
     if (!supabase) {
       return { success: false, error: 'Authentication not configured' };
@@ -141,7 +194,6 @@ export function useAuth(): UseAuthReturn {
         return { success: false, error: 'Please verify your email first' };
       }
 
-      // onAuthStateChange will handle setting user
       return { success: true };
     } catch (error: any) {
       return { success: false, error: error.message || 'Login failed' };
@@ -150,7 +202,7 @@ export function useAuth(): UseAuthReturn {
 
   // Sign up
   const signUp = useCallback(async (email: string, password: string, fullName: string) => {
-    const supabase = getSupabaseClient();
+    const supabase = await initSupabaseClient();
     
     if (!supabase) {
       return { success: false, error: 'Authentication not configured' };
@@ -179,7 +231,7 @@ export function useAuth(): UseAuthReturn {
 
   // Sign out
   const signOut = useCallback(async () => {
-    const supabase = getSupabaseClient();
+    const supabase = await initSupabaseClient();
     
     if (supabase) {
       await supabase.auth.signOut();
@@ -204,38 +256,4 @@ export function useAuth(): UseAuthReturn {
     signOut,
     checkAdminStatus,
   };
-}
-
-/**
- * Check admin status on server side (for API routes)
- */
-export async function checkAdminOnServer(): Promise<{ isAdmin: boolean; userId?: string }> {
-  try {
-    const adminClient = getSupabaseAdminClient();
-    if (!adminClient) {
-      return { isAdmin: false };
-    }
-
-    const { data: { user }, error } = await adminClient.auth.getUser();
-    
-    if (error || !user) {
-      return { isAdmin: false };
-    }
-
-    // Check if user is in admin_users table
-    const { data: adminUser } = await adminClient
-      .from('admin_users')
-      .select('id, is_active')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .single();
-
-    return {
-      isAdmin: !!adminUser,
-      userId: user.id,
-    };
-  } catch (error) {
-    console.error('Server admin check error:', error);
-    return { isAdmin: false };
-  }
 }
