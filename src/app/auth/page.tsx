@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, CheckCircle, Loader2, Mail, Phone, ArrowLeft } from 'lucide-react';
+import { AlertCircle, CheckCircle, Loader2, Mail, Phone, ArrowLeft, Eye, EyeOff, Shield, Users, Store } from 'lucide-react';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { useStore } from '@/store/useStore';
 import { useToast } from '@/lib/use-toast';
@@ -35,7 +35,7 @@ async function fetchConfig(): Promise<SupabaseConfig | null> {
 function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect') || '/admin';
+  const redirect = searchParams.get('redirect') || '/';
   const type = searchParams.get('type');
   const { setUser } = useStore();
   const { toast } = useToast();
@@ -49,9 +49,10 @@ function AuthContent() {
   const [verificationLoading, setVerificationLoading] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Initialize Supabase client after mounting
   useEffect(() => {
     let mounted = true;
     let retryCount = 0;
@@ -59,15 +60,11 @@ function AuthContent() {
 
     async function initSupabase() {
       try {
-        // Try fetching config
         const config = await fetchConfig();
-        console.log('Config fetched:', config ? 'success' : 'failed');
-        
         if (!mounted) return;
 
         if (config?.supabaseUrl && config?.supabaseAnonKey) {
           try {
-            console.log('Creating Supabase client...');
             const client = createClient(config.supabaseUrl, config.supabaseAnonKey, {
               auth: {
                 persistSession: true,
@@ -75,24 +72,18 @@ function AuthContent() {
                 autoRefreshToken: true,
               },
             });
-            console.log('Supabase client created successfully');
-            
             if (mounted) {
               setSupabase(client);
               setIsInitializing(false);
             }
           } catch (err) {
-            console.error('Failed to create Supabase client:', err);
             if (mounted) {
               setCredentialsError('Failed to initialize authentication. Please refresh.');
               setIsInitializing(false);
             }
           }
         } else {
-          // Retry logic
           retryCount++;
-          console.log(`Config not ready, retry ${retryCount}/${maxRetries}`);
-          
           if (retryCount < maxRetries && mounted) {
             await new Promise(resolve => setTimeout(resolve, 2000));
             initSupabase();
@@ -102,7 +93,6 @@ function AuthContent() {
           }
         }
       } catch (err) {
-        console.error('Init error:', err);
         retryCount++;
         if (retryCount < maxRetries && mounted) {
           await new Promise(resolve => setTimeout(resolve, 2000));
@@ -116,10 +106,8 @@ function AuthContent() {
 
     initSupabase();
 
-    // Set a timeout to show error if init takes too long
     initTimeoutRef.current = setTimeout(() => {
       if (mounted && !supabase) {
-        console.error('Initialization timed out');
         setCredentialsError('Connection timed out. Please refresh the page.');
         setIsInitializing(false);
       }
@@ -133,7 +121,6 @@ function AuthContent() {
     };
   }, []);
 
-  // Check if user is coming from an email confirmation link
   useEffect(() => {
     if (supabase && type) {
       handleEmailCallback(type);
@@ -144,10 +131,7 @@ function AuthContent() {
     setVerificationLoading(true);
     try {
       const { data, error } = await supabase!.auth.getSession();
-      
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       if (data.session?.user?.email_confirmed_at) {
         setEmailVerified(true);
@@ -167,7 +151,6 @@ function AuthContent() {
         }, 2000);
       }
     } catch (err: any) {
-      console.error('Email verification error:', err);
       toast({
         title: "Verification Failed",
         description: err.message || "Could not verify email. Please try signing in.",
@@ -180,16 +163,13 @@ function AuthContent() {
 
   const handleResendConfirmation = async () => {
     if (!supabase || !pendingEmail) return;
-    
     setResendLoading(true);
     try {
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email: pendingEmail,
       });
-
       if (error) throw error;
-
       toast({
         title: "Email Sent",
         description: "A new confirmation email has been sent.",
@@ -205,53 +185,33 @@ function AuthContent() {
     }
   };
 
-  // Sign in form state
-  const [signInData, setSignInData] = useState({
-    email: '',
-    password: '',
-  });
-
-  // Sign up form state
-  const [signUpData, setSignUpData] = useState({
-    email: '',
-    password: '',
-    fullName: '',
-    phone: '',
-    confirmPassword: '',
-  });
-
-  // Password reset state
+  const [signInData, setSignInData] = useState({ email: '', password: '' });
+  const [signUpData, setSignUpData] = useState({ email: '', password: '', fullName: '', phone: '', confirmPassword: '' });
   const [resetEmail, setResetEmail] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!supabase) {
       setError('Authentication not ready. Please wait...');
       return;
     }
-
     setError('');
     setLoading(true);
-
     try {
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: signInData.email,
         password: signInData.password,
       });
-
-      if (signInError) {
-        throw Error(signInError.message);
-      }
+      if (signInError) throw Error(signInError.message);
 
       if (!data.user?.email_confirmed_at) {
         setEmailNotVerified(true);
         setPendingEmail(signInData.email);
         toast({
           title: "Email Not Verified",
-          description: "Please check your email and click the confirmation link before signing in.",
+          description: "Please check your email and click the confirmation link.",
           variant: "destructive",
         });
         return;
@@ -267,12 +227,7 @@ function AuthContent() {
       router.push(redirect);
       router.refresh();
     } catch (err: any) {
-      console.error('Sign in error:', err);
-      if (err.message === 'Failed to fetch' || err.message.includes('fetch')) {
-        setError('Network error. Please check your internet connection and try again.');
-      } else {
-        setError(err.message || 'Login failed');
-      }
+      setError(err.message || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -280,26 +235,20 @@ function AuthContent() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!supabase) {
       setError('Authentication not ready. Please wait...');
       return;
     }
-
     setError('');
-
     if (signUpData.password !== signUpData.confirmPassword) {
       setError('Passwords do not match');
       return;
     }
-
     if (signUpData.password.length < 6) {
       setError('Password must be at least 6 characters');
       return;
     }
-
     setLoading(true);
-
     try {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: signUpData.email,
@@ -311,17 +260,7 @@ function AuthContent() {
           },
         },
       });
-
-      if (signUpError) {
-        throw Error(signUpError.message);
-      }
-
-      setUser({
-        id: data.user!.id,
-        email: data.user!.email || '',
-        full_name: data.user!.user_metadata?.full_name,
-        avatar_url: data.user!.user_metadata?.avatar_url,
-      });
+      if (signUpError) throw Error(signUpError.message);
 
       if (!data.user?.email_confirmed_at) {
         setEmailNotVerified(true);
@@ -331,6 +270,12 @@ function AuthContent() {
           description: "Please check your email to confirm your account.",
         });
       } else {
+        setUser({
+          id: data.user!.id,
+          email: data.user!.email || '',
+          full_name: data.user!.user_metadata?.full_name,
+          avatar_url: data.user!.user_metadata?.avatar_url,
+        });
         router.push(redirect);
         router.refresh();
       }
@@ -343,33 +288,24 @@ function AuthContent() {
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!resetEmail) {
       setError('Please enter your email address');
       return;
     }
-
     if (!supabase) {
       setError('Authentication not ready. Please wait...');
       return;
     }
-
     setError('');
     setResetLoading(true);
-
     try {
       const response = await fetch('/api/auth/password-reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: resetEmail }),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw Error(data.error || 'Failed to send reset email');
-      }
-
+      if (!response.ok) throw Error(data.error || 'Failed to send reset email');
       setResetSent(true);
       toast({
         title: "Reset Email Sent",
@@ -382,18 +318,19 @@ function AuthContent() {
     }
   };
 
+  // Error State
   if (credentialsError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-red-500" />
-              Configuration Error
-            </CardTitle>
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md border-red-200 bg-red-50 dark:bg-red-950/20">
+          <CardHeader className="text-center">
+            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="h-8 w-8 text-red-600" />
+            </div>
+            <CardTitle className="text-xl">Configuration Error</CardTitle>
             <CardDescription>{credentialsError}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             <Button onClick={() => window.location.reload()} className="w-full">
               Reload Page
             </Button>
@@ -406,16 +343,15 @@ function AuthContent() {
     );
   }
 
+  // Loading States
   if (verificationLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
-              <h3 className="text-lg font-semibold mb-2">Verifying...</h3>
-              <p className="text-muted-foreground">Please wait while we verify your email.</p>
-            </div>
+          <CardContent className="pt-8 pb-8 text-center">
+            <Loader2 className="h-16 w-16 animate-spin mx-auto mb-4 text-primary" />
+            <h3 className="text-xl font-semibold mb-2">Verifying...</h3>
+            <p className="text-muted-foreground">Please wait while we verify your email.</p>
           </CardContent>
         </Card>
       </div>
@@ -424,14 +360,14 @@ function AuthContent() {
 
   if (emailVerified) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Email Verified!</h3>
-              <p className="text-muted-foreground mb-4">Redirecting you to the app...</p>
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md border-green-200 bg-green-50 dark:bg-green-950/20">
+          <CardContent className="pt-8 pb-8 text-center">
+            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
+            <h3 className="text-xl font-semibold mb-2 text-green-700 dark:text-green-400">Email Verified!</h3>
+            <p className="text-muted-foreground">Redirecting you to the app...</p>
           </CardContent>
         </Card>
       </div>
@@ -440,14 +376,12 @@ function AuthContent() {
 
   if (isInitializing || !supabase) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
-              <h3 className="text-lg font-semibold mb-2">Loading...</h3>
-              <p className="text-muted-foreground">Setting up authentication</p>
-            </div>
+          <CardContent className="pt-8 pb-8 text-center">
+            <Loader2 className="h-16 w-16 animate-spin mx-auto mb-4 text-primary" />
+            <h3 className="text-xl font-semibold mb-2">Loading...</h3>
+            <p className="text-muted-foreground">Setting up authentication</p>
           </CardContent>
         </Card>
       </div>
@@ -455,250 +389,342 @@ function AuthContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold">Welcome to</h1>
-          <h2 className="text-4xl font-bold text-[#1e3a5f]">Botsmart Africa</h2>
-          <p className="mt-2 text-gray-600">Southern Africa&apos;s Premier Multi-Vendor Marketplace</p>
+    <div className="min-h-screen bg-gradient-to-b from-background via-muted/20 to-background">
+      {/* Hero Header */}
+      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b">
+        <div className="container mx-auto px-4 py-12">
+          <div className="max-w-md mx-auto text-center">
+            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Shield className="w-8 h-8 text-primary" />
+            </div>
+            <h1 className="text-3xl font-bold mb-2">Welcome to Botsmart Africa</h1>
+            <p className="text-muted-foreground">Southern Africa&apos;s Premier Multi-Vendor Marketplace</p>
+          </div>
         </div>
+      </div>
 
-        {emailNotVerified && (
-          <Card className="border-yellow-500 bg-yellow-50">
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
-                <div className="flex-1">
-                  <h3 className="font-semibold text-yellow-800">Email Verification Required</h3>
-                  <p className="text-sm text-yellow-700 mt-1">
-                    We&apos;ve sent a confirmation email to <strong>{pendingEmail}</strong>.
-                    Please check your inbox and click the link to verify your account.
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-2 mt-4">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={handleResendConfirmation}
-                      disabled={resendLoading}
-                    >
-                      {resendLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        'Resend Email'
-                      )}
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => {
-                        setEmailNotVerified(false);
-                        setPendingEmail('');
-                        setError('');
-                      }}
-                    >
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Back to Login
-                    </Button>
+      {/* Main Content */}
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-md mx-auto">
+          
+          {/* Email Verification Alert */}
+          {emailNotVerified && (
+            <Card className="mb-6 border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Mail className="h-5 w-5 text-yellow-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-yellow-800 dark:text-yellow-200">Email Verification Required</h3>
+                    <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                      We&apos;ve sent a confirmation email to <strong>{pendingEmail}</strong>.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleResendConfirmation}
+                        disabled={resendLoading}
+                        className="border-yellow-300"
+                      >
+                        {resendLoading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          'Resend Email'
+                        )}
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => {
+                          setEmailNotVerified(false);
+                          setPendingEmail('');
+                          setError('');
+                        }}
+                      >
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              </CardContent>
+            </Card>
+          )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Account</CardTitle>
-            <CardDescription>Sign in to your account or create a new one</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue={type || 'signin'} className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
-                <TabsTrigger value="reset">Reset Password</TabsTrigger>
-              </TabsList>
+          {/* Main Auth Card */}
+          <Card className="shadow-lg border-0 bg-card/80 backdrop-blur">
+            <CardHeader className="space-y-1 pb-4">
+              <CardTitle className="text-2xl text-center">Account</CardTitle>
+              <CardDescription className="text-center">
+                Sign in to your account or create a new one
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pb-6">
+              <Tabs defaultValue={type || 'signin'} className="w-full">
+                <TabsList className="grid w-full grid-cols-3 mb-6">
+                  <TabsTrigger value="signin">Sign In</TabsTrigger>
+                  <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                  <TabsTrigger value="reset">Reset</TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="signin">
-                <form onSubmit={handleSignIn} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
-                    <Input
-                      id="signin-email"
-                      type="email"
-                      placeholder="you@example.com"
-                      required
-                      value={signInData.email}
-                      onChange={(e) =>
-                        setSignInData({ ...signInData, email: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-password">Password</Label>
-                    <Input
-                      id="signin-password"
-                      type="password"
-                      required
-                      value={signInData.password}
-                      onChange={(e) =>
-                        setSignInData({ ...signInData, password: e.target.value })
-                      }
-                    />
-                  </div>
-                  {error && (
-                    <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</p>
-                  )}
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? 'Signing in...' : 'Sign In'}
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="signup">
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-name">Full Name</Label>
-                    <Input
-                      id="signup-name"
-                      type="text"
-                      placeholder="John Doe"
-                      required
-                      value={signUpData.fullName}
-                      onChange={(e) =>
-                        setSignUpData({ ...signUpData, fullName: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="you@example.com"
-                      required
-                      value={signUpData.email}
-                      onChange={(e) =>
-                        setSignUpData({ ...signUpData, email: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-phone">Phone Number (Optional)</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="signup-phone"
-                        type="tel"
-                        placeholder="+27 XX XXX XXXX"
-                        className="pl-10"
-                        value={signUpData.phone}
-                        onChange={(e) =>
-                          setSignUpData({ ...signUpData, phone: e.target.value })
-                        }
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Required for phone verification
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      required
-                      value={signUpData.password}
-                      onChange={(e) =>
-                        setSignUpData({ ...signUpData, password: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-confirm">Confirm Password</Label>
-                    <Input
-                      id="signup-confirm"
-                      type="password"
-                      required
-                      value={signUpData.confirmPassword}
-                      onChange={(e) =>
-                        setSignUpData({ ...signUpData, confirmPassword: e.target.value })
-                      }
-                    />
-                  </div>
-                  {error && (
-                    <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</p>
-                  )}
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? 'Creating account...' : 'Sign Up'}
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="reset">
-                {resetSent ? (
-                  <div className="text-center py-6">
-                    <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Check Your Email</h3>
-                    <p className="text-muted-foreground mb-4">
-                      We&apos;ve sent a password reset link to <strong>{resetEmail}</strong>
-                    </p>
-                    <p className="text-sm text-muted-foreground mb-6">
-                      Didn&apos;t receive it? Check your spam folder or try again.
-                    </p>
-                    <Button variant="outline" onClick={() => setResetSent(false)}>
-                      Try Again
-                    </Button>
-                  </div>
-                ) : (
-                  <form onSubmit={handlePasswordReset} className="space-y-4">
-                    <div className="text-center mb-4">
-                      <Mail className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">
-                        Enter your email address and we&apos;ll send you a link to reset your password.
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="reset-email">Email</Label>
-                      <Input
-                        id="reset-email"
-                        type="email"
-                        placeholder="you@example.com"
-                        required
-                        value={resetEmail}
-                        onChange={(e) => setResetEmail(e.target.value)}
-                      />
-                    </div>
+                {/* Sign In Tab */}
+                <TabsContent value="signin">
+                  <form onSubmit={handleSignIn} className="space-y-4">
                     {error && (
-                      <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-2 rounded">
-                        <AlertCircle className="h-4 w-4" />
-                        {error}
+                      <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-3 flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                        <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
                       </div>
                     )}
-                    <Button type="submit" className="w-full" disabled={resetLoading}>
-                      {resetLoading ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="signin-email">Email</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="signin-email"
+                          type="email"
+                          placeholder="you@example.com"
+                          required
+                          value={signInData.email}
+                          onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signin-password">Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="signin-password"
+                          type={showPassword ? 'text' : 'password'}
+                          required
+                          value={signInData.password}
+                          onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <Button type="submit" className="w-full" disabled={loading}>
+                      {loading ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Sending...
+                          Signing in...
                         </>
                       ) : (
-                        'Send Reset Link'
+                        'Sign In'
                       )}
                     </Button>
                   </form>
-                )}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+                </TabsContent>
 
-        <div className="text-center">
-          <Link href="/" className="text-sm text-[#1e3a5f] hover:underline">
-            Back to home
-          </Link>
+                {/* Sign Up Tab */}
+                <TabsContent value="signup">
+                  <form onSubmit={handleSignUp} className="space-y-4">
+                    {error && (
+                      <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-3 flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                        <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-name">Full Name</Label>
+                      <Input
+                        id="signup-name"
+                        type="text"
+                        placeholder="John Smith"
+                        required
+                        value={signUpData.fullName}
+                        onChange={(e) => setSignUpData({ ...signUpData, fullName: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-email">Email</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="signup-email"
+                          type="email"
+                          placeholder="you@example.com"
+                          required
+                          value={signUpData.email}
+                          onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-phone">Phone (Optional)</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="signup-phone"
+                          type="tel"
+                          placeholder="+27 XX XXX XXXX"
+                          value={signUpData.phone}
+                          onChange={(e) => setSignUpData({ ...signUpData, phone: e.target.value })}
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-password">Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="signup-password"
+                          type={showPassword ? 'text' : 'password'}
+                          required
+                          value={signUpData.password}
+                          onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-confirm">Confirm Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="signup-confirm"
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          required
+                          value={signUpData.confirmPassword}
+                          onChange={(e) => setSignUpData({ ...signUpData, confirmPassword: e.target.value })}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <Button type="submit" className="w-full" disabled={loading}>
+                      {loading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating account...
+                        </>
+                      ) : (
+                        'Create Account'
+                      )}
+                    </Button>
+                    <p className="text-xs text-center text-muted-foreground">
+                      By signing up, you agree to our{' '}
+                      <Link href="/terms-of-service" className="text-primary hover:underline">Terms of Service</Link>
+                      {' '}and{' '}
+                      <Link href="/privacy-policy" className="text-primary hover:underline">Privacy Policy</Link>
+                    </p>
+                  </form>
+                </TabsContent>
+
+                {/* Reset Password Tab */}
+                <TabsContent value="reset">
+                  {resetSent ? (
+                    <div className="text-center py-6">
+                      <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CheckCircle className="h-8 w-8 text-green-600" />
+                      </div>
+                      <h3 className="text-xl font-semibold mb-2">Check Your Email</h3>
+                      <p className="text-muted-foreground mb-4">
+                        We&apos;ve sent a password reset link to <strong>{resetEmail}</strong>
+                      </p>
+                      <Button variant="outline" onClick={() => setResetSent(false)}>
+                        Try Different Email
+                      </Button>
+                    </div>
+                  ) : (
+                    <form onSubmit={handlePasswordReset} className="space-y-4">
+                      {error && (
+                        <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-3 flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                          <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+                        </div>
+                      )}
+                      <div className="text-center mb-4">
+                        <p className="text-muted-foreground text-sm">
+                          Enter your email and we&apos;ll send you a link to reset your password.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="reset-email">Email</Label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="reset-email"
+                            type="email"
+                            placeholder="you@example.com"
+                            required
+                            value={resetEmail}
+                            onChange={(e) => setResetEmail(e.target.value)}
+                            className="pl-10"
+                          />
+                        </div>
+                      </div>
+                      <Button type="submit" className="w-full" disabled={resetLoading}>
+                        {resetLoading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          'Send Reset Link'
+                        )}
+                      </Button>
+                    </form>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+
+          {/* Features */}
+          <div className="mt-8 grid grid-cols-3 gap-4 text-center">
+            <div className="bg-card/50 rounded-xl p-4">
+              <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-2">
+                <Shield className="h-5 w-5 text-primary" />
+              </div>
+              <p className="text-sm font-medium">Secure</p>
+              <p className="text-xs text-muted-foreground">SSL Protected</p>
+            </div>
+            <div className="bg-card/50 rounded-xl p-4">
+              <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mx-auto mb-2">
+                <Store className="h-5 w-5 text-green-600" />
+              </div>
+              <p className="text-sm font-medium">Multi-Vendor</p>
+              <p className="text-xs text-muted-foreground">12 Countries</p>
+            </div>
+            <div className="bg-card/50 rounded-xl p-4">
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mx-auto mb-2">
+                <Users className="h-5 w-5 text-blue-600" />
+              </div>
+              <p className="text-sm font-medium">Join Us</p>
+              <p className="text-xs text-muted-foreground">Become a Seller</p>
+            </div>
+          </div>
+
+          {/* Back to Home */}
+          <div className="mt-6 text-center">
+            <Link href="/" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+              &larr; Back to Homepage
+            </Link>
+          </div>
         </div>
       </div>
     </div>
@@ -708,8 +734,8 @@ function AuthContent() {
 export default function AuthPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 flex items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     }>
       <AuthContent />
