@@ -85,22 +85,22 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/page/shipping-policy" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                <Link href="/shipping-policy" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                   Shipping Policy
                 </Link>
               </li>
               <li>
-                <Link href="/page/return-policy" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                <Link href="/return-policy" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                   Return Policy
                 </Link>
               </li>
               <li>
-                <Link href="/page/privacy-policy" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                <Link href="/privacy-policy" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link href="/page/terms-of-service" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                <Link href="/terms-of-service" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                   Terms of Service
                 </Link>
               </li>
@@ -146,16 +146,12 @@ export default function Footer() {
         <div className="mt-12 border-t pt-8 text-center text-sm text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} The Lebogang Group. All rights reserved.</p>
           <div className="mt-2 flex justify-center space-x-4">
-            <Link href="/page/privacy-policy" className="hover:text-primary transition-colors">
+            <Link href="/privacy-policy" className="hover:text-primary transition-colors">
               Privacy Policy
             </Link>
             <span>•</span>
-            <Link href="/page/terms-of-service" className="hover:text-primary transition-colors">
+            <Link href="/terms-of-service" className="hover:text-primary transition-colors">
               Terms of Service
-            </Link>
-            <span>•</span>
-            <Link href="/page/cookie-policy" className="hover:text-primary transition-colors">
-              Cookie Policy
             </Link>
           </div>
         </div>
