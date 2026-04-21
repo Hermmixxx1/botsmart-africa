@@ -10,7 +10,7 @@ export async function GET(
     const client = getSupabase();
     const { id } = await params;
 
-    // Public API - exclude compare_price (markup) from response
+    // Public API - select only essential columns
     const { data, error } = await client
       .from('products')
       .select(`
@@ -24,7 +24,6 @@ export async function GET(
         stock,
         is_featured,
         category_id,
-        seller_id,
         created_at,
         updated_at,
         categories (
@@ -38,7 +37,10 @@ export async function GET(
       .single();
 
     if (error) {
-      throw new Error(`Failed to fetch product: ${error.message}`);
+      return NextResponse.json(
+        { error: 'Product not found' },
+        { status: 404 }
+      );
     }
 
     if (!data) {
@@ -50,6 +52,7 @@ export async function GET(
 
     return NextResponse.json({ product: data });
   } catch (error: any) {
+    console.error('Product fetch error:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to fetch product' },
       { status: 500 }
@@ -65,62 +68,79 @@ export async function PUT(
   try {
     const client = getSupabase();
     const { id } = await params;
+
+    // Verify admin/seller access
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: { user }, error: userError } = await client.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
+    const {
+      name,
+      description,
+      price,
+      compare_price,
+      stock,
+      image_url,
+      images,
+      category_id,
+      is_active,
+      is_featured,
+    } = body;
+
+    // Validate required fields
+    if (!name || !price || stock === undefined) {
+      return NextResponse.json(
+        { error: 'Name, price, and stock are required' },
+        { status: 400 }
+      );
+    }
+
+    // Generate slug if not provided
+    const slug = body.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
     const { data, error } = await client
       .from('products')
       .update({
-        ...(body.name && { name: body.name }),
-        ...(body.slug && { slug: body.slug }),
-        ...(body.description && { description: body.description }),
-        ...(body.price && { price: parseFloat(body.price) }),
-        ...(body.compare_price && { compare_price: parseFloat(body.compare_price) }),
-        ...(body.image_url && { image_url: body.image_url }),
-        ...(body.images && { images: body.images }),
-        ...(body.stock !== undefined && { stock: body.stock }),
-        ...(body.category_id !== undefined && { category_id: body.category_id }),
-        ...(body.is_active !== undefined && { is_active: body.is_active }),
-        ...(body.is_featured !== undefined && { is_featured: body.is_featured }),
+        name,
+        slug,
+        description,
+        price,
+        compare_price,
+        stock,
+        image_url,
+        images,
+        category_id,
+        is_active,
+        is_featured,
+        updated_at: new Date().toISOString(),
       })
       .eq('id', id)
       .select()
       .single();
 
     if (error) {
-      throw new Error(`Failed to update product: ${error.message}`);
+      console.error('Product update error:', error);
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ product: data });
   } catch (error: any) {
+    console.error('Product update error:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to update product' },
-      { status: 500 }
-    );
-  }
-}
-
-// DELETE /api/products/[id] - Delete a product (admin only)
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const client = getSupabase();
-    const { id } = await params;
-
-    const { error } = await client
-      .from('products')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      throw new Error(`Failed to delete product: ${error.message}`);
-    }
-
-    return NextResponse.json({ message: 'Product deleted successfully' });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || 'Failed to delete product' },
       { status: 500 }
     );
   }

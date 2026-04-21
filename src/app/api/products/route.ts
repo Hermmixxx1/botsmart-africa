@@ -14,10 +14,10 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '12');
 
-    // Public API - exclude compare_price (markup) from response
+    // Public API - select only essential columns
     let query = client
       .from('products')
-      .select('id, name, slug, description, price, image_url, stock, is_featured, category_id, seller_id, created_at, updated_at', { count: 'exact' })
+      .select('id, name, slug, description, price, image_url, stock, is_featured, category_id, created_at, updated_at', { count: 'exact' })
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
@@ -49,141 +49,48 @@ export async function GET(request: NextRequest) {
     const { data, error, count } = await query;
 
     if (error) {
-      // If relationship error, try simpler query
-      if (error.message.includes('relationship') || error.message.includes('schema cache')) {
-        const simpleQuery = client
-          .from('products')
-          .select('id, name, slug, description, price, image_url, stock, is_featured, category_id, seller_id, created_at, updated_at', { count: 'exact' })
-          .eq('is_active', true)
-          .order('created_at', { ascending: false });
-        
-        if (categoryId) simpleQuery.eq('category_id', categoryId);
-        if (sellerId) simpleQuery.eq('seller_id', sellerId);
-        if (featured === 'true') simpleQuery.eq('is_featured', true);
-        if (search) simpleQuery.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
-        simpleQuery.range(from, to);
-        
-        const { data: simpleData, error: simpleError, count: simpleCount } = await simpleQuery;
-        
-        if (simpleError) {
-          throw new Error(`Failed to fetch products: ${simpleError.message}`);
+      console.error('Products API error:', error);
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
+    }
+
+    // Get categories for products
+    if (data && data.length > 0) {
+      const categoryIds = [...new Set(data.map((p: any) => p.category_id).filter(Boolean))];
+      
+      if (categoryIds.length > 0) {
+        const { data: categories } = await client
+          .from('categories')
+          .select('id, name, slug')
+          .in('id', categoryIds);
+
+        if (categories) {
+          const categoryMap = new Map(categories.map((c: any) => [c.id, c]));
+          data.forEach((product: any) => {
+            if (product.category_id) {
+              product.categories = categoryMap.get(product.category_id) || null;
+            }
+          });
         }
-        
-        return NextResponse.json({ products: simpleData, page, limit, total: simpleCount });
       }
-      throw new Error(`Failed to fetch products: ${error.message}`);
     }
 
-    // Try to get categories separately
-    let categories: Record<string, any> = {};
-    try {
-      const { data: cats } = await client.from('categories').select('id, name, slug');
-      if (cats) {
-        cats.forEach((cat: any) => {
-          categories[cat.id] = cat;
-        });
-      }
-    } catch {
-      // Categories not available
-    }
-
-    // Try to get sellers separately
-    let sellers: Record<string, any> = {};
-    try {
-      const { data: sels } = await client.from('seller_profiles').select('id, seller_type, status, business_name');
-      if (sels) {
-        sels.forEach((sel: any) => {
-          sellers[sel.id] = sel;
-        });
-      }
-    } catch {
-      // Sellers not available
-    }
-
-    // Attach related data to products
-    const productsWithRelations = (data || []).map((product: any) => ({
-      ...product,
-      categories: categories[product.category_id] || null,
-      seller_profiles: sellers[product.seller_id] || null,
-    }));
-
-    return NextResponse.json({ products: productsWithRelations, page, limit, total: count });
+    return NextResponse.json({
+      products: data || [],
+      page,
+      limit,
+      total: count || 0,
+    });
   } catch (error: any) {
     console.error('Products API error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch products' },
-      { status: 500 }
-    );
-  }
-}
-
-// POST /api/products - Create a new product
-export async function POST(request: NextRequest) {
-  try {
-    const client = getSupabase();
-    const { data: { user } } = await client.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const body = await request.json();
-
-    // Validate required fields
-    const { name, slug, description, price, image_url } = body;
-    if (!name || !slug || !description || !price || !image_url) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-
-    // Get seller profile for the user
-    const { data: sellerProfile, error: sellerError } = await client
-      .from('seller_profiles')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('status', 'approved')
-      .maybeSingle();
-
-    if (sellerError || !sellerProfile) {
-      return NextResponse.json(
-        { error: 'You must be an approved seller to create products' },
-        { status: 403 }
-      );
-    }
-
-    const { data, error } = await client
-      .from('products')
-      .insert({
-        name,
-        slug,
-        description,
-        price: parseFloat(price),
-        compare_price: body.compare_price ? parseFloat(body.compare_price) : null,
-        image_url,
-        images: body.images || [],
-        stock: body.stock || 0,
-        category_id: body.category_id || null,
-        seller_id: sellerProfile.id, // Associate product with seller
-        is_active: body.is_active !== undefined ? body.is_active : true,
-        is_featured: body.is_featured || false,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to create product: ${error.message}`);
-    }
-
-    return NextResponse.json({ product: data }, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || 'Failed to create product' },
-      { status: 500 }
-    );
+    // Return empty array instead of throwing to prevent page crashes
+    return NextResponse.json({
+      products: [],
+      page: 1,
+      limit: 12,
+      total: 0,
+    });
   }
 }
