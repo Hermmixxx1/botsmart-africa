@@ -29,11 +29,9 @@ export async function POST() {
 
     await supabase.auth.signOut();
 
-    const baseUrl = process.env.COZE_PROJECT_DOMAIN_DEFAULT || 'http://localhost:5000';
-    return NextResponse.redirect(new URL('/auth', baseUrl));
+    return NextResponse.redirect(new URL('/auth', process.env.NEXT_PUBLIC_SITE_URL || 'https://botsmart-africa-krdn5eesh-hermix-lebogangs-projects.vercel.app'));
   } catch (error) {
     console.error('Sign out error:', error);
-    const baseUrl = process.env.COZE_PROJECT_DOMAIN_DEFAULT || 'http://localhost:5000';
-    return NextResponse.redirect(new URL('/auth?error=signout_failed', baseUrl));
+    return NextResponse.redirect(new URL('/auth?error=signout_failed', process.env.NEXT_PUBLIC_SITE_URL || 'https://botsmart-africa-krdn5eesh-hermix-lebogangs-projects.vercel.app'));
   }
 }

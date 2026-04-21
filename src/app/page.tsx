@@ -9,8 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PriceDisplay } from '@/components/PriceDisplay';
 
 async function getFeaturedProducts() {
-  const baseUrl = process.env.COZE_PROJECT_DOMAIN_DEFAULT || 'http://localhost:5000';
-  const response = await fetch(`${baseUrl}/api/products?featured=true&limit=4`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/products?featured=true&limit=4`, {
     cache: 'no-store',
   });
   const data = await response.json();
@@ -18,8 +17,7 @@ async function getFeaturedProducts() {
 }
 
 async function getCategories() {
-  const baseUrl = process.env.COZE_PROJECT_DOMAIN_DEFAULT || 'http://localhost:5000';
-  const response = await fetch(`${baseUrl}/api/categories`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/categories`, {
     cache: 'no-store',
   });
   const data = await response.json();

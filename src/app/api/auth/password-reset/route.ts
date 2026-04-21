@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabase();
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:5000'}/auth/reset-password`,
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://botsmart-africa-krdn5eesh-hermix-lebogangs-projects.vercel.app'}/auth/reset-password`,
     });
 
     if (error) {
