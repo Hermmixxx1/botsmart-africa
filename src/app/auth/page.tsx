@@ -39,9 +39,9 @@ function AuthContent() {
   useEffect(() => {
     async function initSupabase() {
       try {
-        // First try direct env vars
-        let url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        let key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        // First try NEXT_PUBLIC_ vars, then fall back to COZE_ vars
+        let url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.COZE_SUPABASE_URL;
+        let key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.COZE_SUPABASE_ANON_KEY;
         
         // If not available, try fetching from config API
         if (!url || !key) {

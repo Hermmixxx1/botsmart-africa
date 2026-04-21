@@ -15,7 +15,7 @@ let clientInstance: SupabaseClient | null = null;
 function getSupabaseClient(): SupabaseClient | null {
   if (clientInstance) return clientInstance;
 
-  // Use environment variables directly
+  // Use environment variables directly (support both NEXT_PUBLIC_ and COZE_ prefixes)
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.COZE_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.COZE_SUPABASE_ANON_KEY;
 
