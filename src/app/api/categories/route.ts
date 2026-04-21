@@ -5,6 +5,10 @@ import { getSupabase } from '@/storage/database/supabase-client';
 export async function GET() {
   try {
     const client = getSupabase();
+    
+    if (!client) {
+      return NextResponse.json({ categories: [] });
+    }
 
     const { data, error } = await client
       .from('categories')
