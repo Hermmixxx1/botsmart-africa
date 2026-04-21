@@ -45,7 +45,7 @@ async function initSupabaseClient(): Promise<SupabaseClient | null> {
     let key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     // If URL not available, fetch from config API
-    if (!url) {
+    if (!url || !key) {
       try {
         const response = await fetch('/api/config', { 
           credentials: 'include',
@@ -53,16 +53,27 @@ async function initSupabaseClient(): Promise<SupabaseClient | null> {
         });
         if (response.ok) {
           const config = await response.json();
+          console.log('Config fetched:', { 
+            hasUrl: !!config.supabaseUrl, 
+            hasKey: !!config.supabaseAnonKey 
+          });
           url = url || config.supabaseUrl;
           key = key || config.supabaseAnonKey;
+        } else {
+          console.error('Config API failed:', response.status);
         }
       } catch (e) {
-        console.log('Config API not available');
+        console.error('Config API error:', e);
       }
     }
 
     if (!url || !key) {
-      console.error('Supabase credentials not found:', { url: !!url, key: !!key });
+      console.error('Supabase credentials not found:', { 
+        envUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+        envKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        hasUrl: !!url, 
+        hasKey: !!key 
+      });
       return null;
     }
 
@@ -177,7 +188,7 @@ export function useAuth(): UseAuthReturn {
     const supabase = await initSupabaseClient();
     
     if (!supabase) {
-      return { success: false, error: 'Authentication not configured' };
+      return { success: false, error: 'Authentication not configured. Please refresh the page.' };
     }
 
     try {
