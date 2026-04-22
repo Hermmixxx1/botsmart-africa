@@ -17,31 +17,38 @@ export interface User {
 // Global client singleton
 let globalClient: SupabaseClient | null = null;
 
-function getClient(): SupabaseClient | null {
-  if (typeof window === 'undefined') return null;
+// Async client initialization
+async function initClient(): Promise<SupabaseClient | null> {
   if (globalClient) return globalClient;
 
-  // Try to get from window (set by server)
-  const win = window as any;
-  if (win.__SUPABASE_URL__ && win.__SUPABASE_ANON_KEY__) {
-    globalClient = createClient(win.__SUPABASE_URL__, win.__SUPABASE_ANON_KEY__, {
-      auth: { persistSession: true, autoRefreshToken: true },
-    });
-    return globalClient;
+  // Try env vars first
+  let url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  let key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // Fetch from config API if not in env
+  if (!url || !key) {
+    try {
+      const res = await fetch('/api/config', { credentials: 'include', cache: 'no-store' });
+      if (res.ok) {
+        const config = await res.json();
+        url = url || config.supabaseUrl;
+        key = key || config.supabaseAnonKey;
+      }
+    } catch (e) {
+      console.log('Config fetch failed');
+    }
   }
 
-  // Fallback to env vars (for local dev)
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
-  if (url && key) {
-    globalClient = createClient(url, key, {
-      auth: { persistSession: true, autoRefreshToken: true },
-    });
-    return globalClient;
+  if (!url || !key) {
+    console.error('No Supabase credentials found');
+    return null;
   }
 
-  return null;
+  globalClient = createClient(url, key, {
+    auth: { persistSession: true, autoRefreshToken: true },
+  });
+
+  return globalClient;
 }
 
 export function useAuth() {
@@ -52,50 +59,20 @@ export function useAuth() {
 
   // Initialize on mount
   useEffect(() => {
-    const client = getClient();
-    if (!client) {
-      setLoading(false);
-      return;
-    }
+    let mounted = true;
+    let subscription: { unsubscribe: () => void } | null = null;
 
-    // Check current session
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await client.auth.getSession();
-        
-        if (session?.user) {
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            full_name: session.user.user_metadata?.full_name,
-          });
-          
-          // Check admin via API with JWT
-          try {
-            const res = await fetch('/api/auth/check-admin', {
-              headers: { Authorization: `Bearer ${session.access_token}` },
-            });
-            const data = await res.json();
-            setIsAdmin(data.isAdmin === true);
-          } catch (e) {
-            setIsAdmin(false);
-          }
-        } else {
-          setUser(null);
-          setIsAdmin(false);
-        }
-      } catch (e) {
-        console.error('Session check failed:', e);
-      } finally {
+    const init = async () => {
+      const client = await initClient();
+      if (!client || !mounted) {
         setLoading(false);
+        return;
       }
-    };
 
-    checkSession();
-
-    // Listen for changes
-    const { data: { subscription } } = client.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
+      // Check current session
+      const { data: { session } } = await client.auth.getSession();
+      
+      if (session?.user) {
         setUser({
           id: session.user.id,
           email: session.user.email || '',
@@ -108,21 +85,58 @@ export function useAuth() {
             headers: { Authorization: `Bearer ${session.access_token}` },
           });
           const data = await res.json();
-          setIsAdmin(data.isAdmin === true);
+          if (mounted) setIsAdmin(data.isAdmin === true);
         } catch (e) {
+          if (mounted) setIsAdmin(false);
+        }
+      } else {
+        if (mounted) {
+          setUser(null);
           setIsAdmin(false);
         }
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setIsAdmin(false);
       }
-    });
 
-    return () => subscription.unsubscribe();
+      if (mounted) setLoading(false);
+
+      // Listen for auth changes
+      subscription = client.auth.onAuthStateChange(async (event, session) => {
+        if (!mounted) return;
+
+        if (event === 'SIGNED_IN' && session?.user) {
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            full_name: session.user.user_metadata?.full_name,
+          });
+          
+          try {
+            const res = await fetch('/api/auth/check-admin', {
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            const data = await res.json();
+            if (mounted) setIsAdmin(data.isAdmin === true);
+          } catch (e) {
+            if (mounted) setIsAdmin(false);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          if (mounted) {
+            setUser(null);
+            setIsAdmin(false);
+          }
+        }
+      }).data.subscription;
+    };
+
+    init();
+
+    return () => {
+      mounted = false;
+      if (subscription) subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const client = getClient();
+    const client = await initClient();
     if (!client) return { success: false, error: 'Not configured' };
 
     const { data, error } = await client.auth.signInWithPassword({ email, password });
@@ -134,7 +148,7 @@ export function useAuth() {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, fullName: string) => {
-    const client = getClient();
+    const client = await initClient();
     if (!client) return { success: false, error: 'Not configured' };
 
     const { data, error } = await client.auth.signUp({
@@ -148,7 +162,7 @@ export function useAuth() {
   }, []);
 
   const signOut = useCallback(async () => {
-    const client = getClient();
+    const client = await initClient();
     if (client) await client.auth.signOut();
     setUser(null);
     setIsAdmin(false);
