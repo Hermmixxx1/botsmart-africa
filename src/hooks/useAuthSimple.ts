@@ -1,10 +1,10 @@
 /**
- * Simple Auth - Minimal, reliable authentication
+ * Simple Auth Hook - Client side auth with admin check
  */
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 
@@ -14,18 +14,29 @@ export interface User {
   full_name?: string;
 }
 
-// Global client singleton
+// Global state
 let globalClient: SupabaseClient | null = null;
+let cachedUser: User | null = null;
+let cachedIsAdmin: boolean = false;
+let authListeners: ((user: User | null, isAdmin: boolean) => void)[] = [];
 
-// Async client initialization
+function notifyListeners(user: User | null, isAdmin: boolean) {
+  authListeners.forEach(listener => listener(user, isAdmin));
+}
+
+function subscribeAuthChanges(callback: (user: User | null, isAdmin: boolean) => void) {
+  authListeners.push(callback);
+  return () => {
+    authListeners = authListeners.filter(l => l !== callback);
+  };
+}
+
 async function initClient(): Promise<SupabaseClient | null> {
   if (globalClient) return globalClient;
 
-  // Try env vars first
   let url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   let key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // Fetch from config API if not in env
   if (!url || !key) {
     try {
       const res = await fetch('/api/config', { credentials: 'include', cache: 'no-store' });
@@ -35,12 +46,12 @@ async function initClient(): Promise<SupabaseClient | null> {
         key = key || config.supabaseAnonKey;
       }
     } catch (e) {
-      console.log('Config fetch failed');
+      console.error('Config fetch failed');
     }
   }
 
   if (!url || !key) {
-    console.error('No Supabase credentials found');
+    console.error('No Supabase URL or Key');
     return null;
   }
 
@@ -51,78 +62,103 @@ async function initClient(): Promise<SupabaseClient | null> {
   return globalClient;
 }
 
+async function checkAdminStatus(): Promise<{ isAdmin: boolean; userId?: string; role?: string }> {
+  try {
+    const res = await fetch('/api/auth/check-admin', {
+      credentials: 'include',
+      cache: 'no-store',
+    });
+    
+    if (!res.ok) {
+      return { isAdmin: false };
+    }
+    
+    const data = await res.json();
+    return { isAdmin: data.isAdmin, userId: data.userId, role: data.role };
+  } catch (e) {
+    console.error('Admin check failed:', e);
+    return { isAdmin: false };
+  }
+}
+
 export function useAuth() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [user, setUser] = useState<User | null>(cachedUser);
+  const [isAdmin, setIsAdmin] = useState(cachedIsAdmin);
   const [loading, setLoading] = useState(true);
+  const initRef = useRef(false);
 
-  // Initialize on mount
   useEffect(() => {
+    if (initRef.current) return;
+    initRef.current = true;
+
     let mounted = true;
     let subscription: { unsubscribe: () => void } | null = null;
 
     const init = async () => {
       const client = await initClient();
-      if (!client || !mounted) {
-        setLoading(false);
+      if (!client) {
+        if (mounted) setLoading(false);
         return;
       }
 
-      // Check current session
-      const { data: { session } } = await client.auth.getSession();
+      // Retry getting session a few times (cookies might not be set immediately)
+      let session = null;
+      for (let i = 0; i < 3; i++) {
+        const { data } = await client.auth.getSession();
+        if (data.session) {
+          session = data.session;
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
       
       if (session?.user) {
-        setUser({
+        const userData: User = {
           id: session.user.id,
           email: session.user.email || '',
           full_name: session.user.user_metadata?.full_name,
-        });
+        };
         
-        // Check admin
-        try {
-          const res = await fetch('/api/auth/check-admin');
-          const data = await res.json();
-          console.log('Admin check result:', data);
-          if (mounted) setIsAdmin(data.isAdmin === true);
-        } catch (e) {
-          console.error('Admin check failed:', e);
-          if (mounted) setIsAdmin(false);
-        }
-      } else {
-        if (mounted) {
-          setUser(null);
-          setIsAdmin(false);
-        }
+        cachedUser = userData;
+        if (mounted) setUser(userData);
+        
+        // Check admin status
+        const adminStatus = await checkAdminStatus();
+        cachedIsAdmin = adminStatus.isAdmin;
+        if (mounted) setIsAdmin(adminStatus.isAdmin);
       }
 
       if (mounted) setLoading(false);
 
-      // Listen for auth changes
+      // Subscribe to auth changes
       subscription = client.auth.onAuthStateChange(async (event, session) => {
         if (!mounted) return;
 
         if (event === 'SIGNED_IN' && session?.user) {
-          setUser({
+          const userData: User = {
             id: session.user.id,
             email: session.user.email || '',
             full_name: session.user.user_metadata?.full_name,
-          });
+          };
           
-          try {
-            const res = await fetch('/api/auth/check-admin', {
-              headers: { Authorization: `Bearer ${session.access_token}` },
-            });
-            const data = await res.json();
-            if (mounted) setIsAdmin(data.isAdmin === true);
-          } catch (e) {
-            if (mounted) setIsAdmin(false);
-          }
+          cachedUser = userData;
+          if (mounted) setUser(userData);
+          
+          // Check admin status after sign in
+          const adminStatus = await checkAdminStatus();
+          cachedIsAdmin = adminStatus.isAdmin;
+          if (mounted) setIsAdmin(adminStatus.isAdmin);
+          notifyListeners(userData, adminStatus.isAdmin);
+          
         } else if (event === 'SIGNED_OUT') {
+          cachedUser = null;
+          cachedIsAdmin = false;
           if (mounted) {
             setUser(null);
             setIsAdmin(false);
           }
+          notifyListeners(null, false);
         }
       }).data.subscription;
     };
@@ -164,8 +200,11 @@ export function useAuth() {
   const signOut = useCallback(async () => {
     const client = await initClient();
     if (client) await client.auth.signOut();
+    cachedUser = null;
+    cachedIsAdmin = false;
     setUser(null);
     setIsAdmin(false);
+    notifyListeners(null, false);
     router.push('/');
     router.refresh();
   }, [router]);

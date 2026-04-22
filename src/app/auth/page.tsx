@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,18 @@ function AuthContent() {
   const redirect = searchParams.get('redirect') || '/';
   const { toast } = useToast();
   
-  const { signIn, signUp, loading } = useAuth();
+  const { user, loading, signIn, signUp } = useAuth();
+  
+  // If user is already logged in, redirect immediately
+  useEffect(() => {
+    if (!loading && user) {
+      if (redirect.includes('/admin')) {
+        router.push('/admin');
+      } else {
+        router.push(redirect);
+      }
+    }
+  }, [user, loading, redirect, router]);
   
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -43,7 +54,11 @@ function AuthContent() {
       return;
     }
     
+    // Wait a moment for session to be established
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     // Redirect based on destination
+    // Let the destination page handle its own auth check
     if (redirect.includes('/admin')) {
       router.push('/admin');
     } else {

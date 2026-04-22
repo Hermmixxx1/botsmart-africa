@@ -2,7 +2,7 @@
  * Check Admin Status API
  * GET /api/auth/check-admin
  * 
- * Uses cookies for session (Supabase SSR style)
+ * Uses cookie-based session with direct token access
  */
 
 import { NextResponse } from 'next/server';
@@ -26,6 +26,7 @@ export async function GET() {
     const { url, anonKey, serviceKey } = getEnv();
     
     if (!url || !anonKey) {
+      console.error('Missing Supabase env vars');
       return NextResponse.json({ 
         isAdmin: false, 
         error: 'Database not configured' 
@@ -33,12 +34,18 @@ export async function GET() {
     }
 
     const cookieStore = await cookies();
-
+    const allCookies = cookieStore.getAll();
+    
     // Create server client with cookies
     const supabase = createServerClient(url, anonKey, {
       cookies: {
         getAll() {
-          return cookieStore.getAll();
+          return allCookies;
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options);
+          });
         },
       },
     });
@@ -49,17 +56,21 @@ export async function GET() {
     if (error || !user) {
       return NextResponse.json({ 
         isAdmin: false, 
-        error: 'Not authenticated',
-        debug: error?.message 
+        error: 'Not authenticated' 
       }, { status: 401 });
     }
 
-    // Check admin status using service role
+    // Check admin status using service role (bypasses RLS)
     if (serviceKey) {
       const adminClient = createServerClient(url, serviceKey, {
         cookies: {
           getAll() {
-            return cookieStore.getAll();
+            return allCookies;
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
           },
         },
       });
@@ -79,17 +90,35 @@ export async function GET() {
         }, { status: 403 });
       }
 
-      return NextResponse.json({
-        isAdmin: true,
-        user: { id: user.id, email: user.email },
+      return NextResponse.json({ 
+        isAdmin: true, 
+        userId: user.id,
         role: adminUser.admin_roles?.name || 'admin',
+        email: user.email 
       });
     }
 
-    // No service key - assume authenticated but not admin
+    // Fallback: try with anon key
+    const { data: adminUser, error: dbError } = await supabase
+      .from('admin_users')
+      .select('*, admin_roles(*)')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .single();
+
+    if (dbError || !adminUser) {
+      return NextResponse.json({ 
+        isAdmin: false, 
+        error: 'Not an admin',
+        userId: user.id
+      }, { status: 403 });
+    }
+
     return NextResponse.json({ 
-      isAdmin: false, 
-      error: 'Service key not configured' 
+      isAdmin: true, 
+      userId: user.id,
+      role: adminUser.admin_roles?.name || 'admin',
+      email: user.email 
     });
 
   } catch (error: any) {

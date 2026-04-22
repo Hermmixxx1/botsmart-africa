@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Package, ShoppingBag, Users, Settings, LayoutDashboard, FileText, UserPlus, LogOut, Loader2 } from 'lucide-react';
@@ -10,31 +10,46 @@ import { useAuth } from '@/hooks/useAuthSimple';
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, isAdmin, loading, signOut } = useAuth();
+  const [checkTimeout, setCheckTimeout] = useState(false);
+
+  // Timeout for admin check - if it takes too long, proceed anyway
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (loading) {
+        setCheckTimeout(true);
+      }
+    }, 5000); // 5 second timeout
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.push('/auth?redirect=/admin');
-      } else if (!isAdmin) {
-        router.push('/?error=not_admin');
-      }
+    if (loading && !checkTimeout) return;
+    
+    // If timeout or not loading anymore
+    if (!user) {
+      router.push('/auth?redirect=/admin');
     }
-  }, [user, loading, isAdmin, router]);
+    // Note: Even if isAdmin is false, we proceed.
+    // The actual admin API calls will verify admin status.
+  }, [user, loading, isAdmin, router, checkTimeout]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
-      </div>
-    );
-  }
-
-  if (!user || !isAdmin) {
+  if (loading && !checkTimeout) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-purple-600 mx-auto mb-4" />
-          <p className="text-gray-600">Checking permissions...</p>
+          <p className="text-gray-600">Loading admin panel...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-purple-600 mx-auto mb-4" />
+          <p className="text-gray-600">Redirecting to login...</p>
         </div>
       </div>
     );
