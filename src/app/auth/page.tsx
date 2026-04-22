@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,23 +12,9 @@ import { useAuth } from '@/hooks/useAuthSimple';
 import { useToast } from '@/lib/use-toast';
 
 function AuthContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect') || '/';
   const { toast } = useToast();
   
-  const { user, loading, signIn, signUp } = useAuth();
-  
-  // If user is already logged in, redirect immediately
-  useEffect(() => {
-    if (!loading && user) {
-      if (redirect.includes('/admin')) {
-        router.push('/admin');
-      } else {
-        router.push(redirect);
-      }
-    }
-  }, [user, loading, redirect, router]);
+  const { loading, signIn, signUp } = useAuth();
   
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -54,16 +39,11 @@ function AuthContent() {
       return;
     }
     
-    // Wait a moment for session to be established
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Redirect based on destination
-    // Let the destination page handle its own auth check
-    if (redirect.includes('/admin')) {
-      router.push('/admin');
-    } else {
-      router.push(redirect);
-    }
+    // Show success message
+    toast({
+      title: "Welcome back!",
+      description: "You have successfully signed in.",
+    });
   };
 
   const handleSignUp = async (e: React.FormEvent) => {

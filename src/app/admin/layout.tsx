@@ -1,59 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Package, ShoppingBag, Users, Settings, LayoutDashboard, FileText, UserPlus, LogOut, Loader2 } from 'lucide-react';
+import { Package, ShoppingBag, Users, Settings, LayoutDashboard, FileText, UserPlus, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuthSimple';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const { user, isAdmin, loading, signOut } = useAuth();
-  const [checkTimeout, setCheckTimeout] = useState(false);
-
-  // Timeout for admin check - if it takes too long, proceed anyway
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (loading) {
-        setCheckTimeout(true);
-      }
-    }, 5000); // 5 second timeout
-    return () => clearTimeout(timer);
-  }, [loading]);
-
-  useEffect(() => {
-    if (loading && !checkTimeout) return;
-    
-    // If timeout or not loading anymore
-    if (!user) {
-      router.push('/auth?redirect=/admin');
-    }
-    // Note: Even if isAdmin is false, we proceed.
-    // The actual admin API calls will verify admin status.
-  }, [user, loading, isAdmin, router, checkTimeout]);
-
-  if (loading && !checkTimeout) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-purple-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading admin panel...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-purple-600 mx-auto mb-4" />
-          <p className="text-gray-600">Redirecting to login...</p>
-        </div>
-      </div>
-    );
-  }
+  const { user, signOut } = useAuth();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -78,7 +31,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
 
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-500">{user.email}</span>
+              {user && <span className="text-sm text-gray-500">{user.email}</span>}
               <Button variant="ghost" size="sm" onClick={signOut}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign Out

@@ -7,8 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { getCurrentUser } from '@/lib/auth';
-import { useRouter } from 'next/navigation';
 
 interface SellerProfile {
   id: string;
@@ -43,7 +41,6 @@ interface OrderItem {
 }
 
 export default function SellerDashboardPage() {
-  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<SellerProfile | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -55,17 +52,8 @@ export default function SellerDashboardPage() {
   });
 
   useEffect(() => {
-    checkAuth();
     fetchDashboardData();
   }, []);
-
-  const checkAuth = async () => {
-    const user = await getCurrentUser();
-    if (!user) {
-      router.push('/auth');
-      return;
-    }
-  };
 
   const fetchDashboardData = async () => {
     try {
@@ -323,6 +311,20 @@ export default function SellerDashboardPage() {
               )}
             </TabsContent>
           </Tabs>
+        )}
+
+        {!profile && (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-16">
+              <h2 className="text-2xl font-semibold mb-2">No Seller Account</h2>
+              <p className="text-muted-foreground mb-6">
+                Register as a seller to start selling products
+              </p>
+              <Button asChild>
+                <Link href="/seller/register">Register as Seller</Link>
+              </Button>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

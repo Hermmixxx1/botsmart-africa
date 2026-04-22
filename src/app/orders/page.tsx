@@ -6,8 +6,6 @@ import { Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { getCurrentUser } from '@/lib/auth';
-import { useRouter } from 'next/navigation';
 
 interface OrderItem {
   id: string;
@@ -41,22 +39,12 @@ interface Order {
 }
 
 export default function OrdersPage() {
-  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
 
   useEffect(() => {
-    checkAuthAndFetchOrders();
-  }, []);
-
-  const checkAuthAndFetchOrders = async () => {
-    const user = await getCurrentUser();
-    if (!user) {
-      router.push('/auth');
-      return;
-    }
     fetchOrders();
-  };
+  }, []);
 
   const fetchOrders = async () => {
     try {

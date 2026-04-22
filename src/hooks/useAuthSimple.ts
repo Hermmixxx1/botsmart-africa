@@ -1,5 +1,6 @@
 /**
  * Simple Auth Hook - Client side auth with admin check
+ * Uses both Supabase session AND explicit cookie fallback
  */
 
 'use client';
@@ -18,18 +19,8 @@ export interface User {
 let globalClient: SupabaseClient | null = null;
 let cachedUser: User | null = null;
 let cachedIsAdmin: boolean = false;
-let authListeners: ((user: User | null, isAdmin: boolean) => void)[] = [];
 
-function notifyListeners(user: User | null, isAdmin: boolean) {
-  authListeners.forEach(listener => listener(user, isAdmin));
-}
-
-function subscribeAuthChanges(callback: (user: User | null, isAdmin: boolean) => void) {
-  authListeners.push(callback);
-  return () => {
-    authListeners = authListeners.filter(l => l !== callback);
-  };
-}
+const SESSION_COOKIE_NAME = 'botsmart_session';
 
 async function initClient(): Promise<SupabaseClient | null> {
   if (globalClient) return globalClient;
@@ -60,6 +51,37 @@ async function initClient(): Promise<SupabaseClient | null> {
   });
 
   return globalClient;
+}
+
+// Store session info in a cookie (survives redirects)
+function storeSessionCookie(userId: string, email: string, role?: string) {
+  if (typeof document === 'undefined') return;
+  
+  const sessionData = JSON.stringify({ userId, email, role, timestamp: Date.now() });
+  document.cookie = `${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionData)};path=/;max-age=86400;SameSite=Lax`;
+}
+
+// Read session from cookie
+function getSessionFromCookie(): { userId?: string; email?: string; role?: string } | null {
+  if (typeof document === 'undefined') return null;
+  
+  const match = document.cookie.match(new RegExp(`${SESSION_COOKIE_NAME}=([^;]+)`));
+  if (!match) return null;
+  
+  try {
+    const data = JSON.parse(decodeURIComponent(match[1]));
+    // Check if session is less than 24 hours old
+    if (Date.now() - data.timestamp > 86400000) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+// Clear session cookie
+function clearSessionCookie() {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${SESSION_COOKIE_NAME}=;path=/;max-age=0`;
 }
 
 async function checkAdminStatus(): Promise<{ isAdmin: boolean; userId?: string; role?: string }> {
@@ -97,21 +119,83 @@ export function useAuth() {
 
     const init = async () => {
       const client = await initClient();
+      
+      // First, check cookie for session (faster, survives redirects)
+      const cookieSession = getSessionFromCookie();
+      
+      if (cookieSession?.userId) {
+        // We have a cookie session - restore user from it
+        cachedUser = { id: cookieSession.userId, email: cookieSession.email || '' };
+        if (mounted) setUser(cachedUser);
+        
+        // Then check Supabase for full session
+        if (client) {
+          const { data: { session } } = await client.auth.getSession();
+          
+          if (session?.user) {
+            // Update with actual Supabase user data
+            cachedUser = {
+              id: session.user.id,
+              email: session.user.email || '',
+              full_name: session.user.user_metadata?.full_name,
+            };
+            if (mounted) setUser(cachedUser);
+            
+            // Check admin status
+            const adminStatus = await checkAdminStatus();
+            cachedIsAdmin = adminStatus.isAdmin;
+            if (mounted) setIsAdmin(adminStatus.isAdmin);
+            
+            // Update cookie
+            storeSessionCookie(session.user.id, session.user.email || '', adminStatus.role);
+          } else {
+            // Cookie exists but Supabase session expired - check admin anyway
+            const adminStatus = await checkAdminStatus();
+            if (mounted) setIsAdmin(adminStatus.isAdmin);
+          }
+        }
+        
+        if (mounted) setLoading(false);
+        if (client) {
+          subscription = client.auth.onAuthStateChange(async (event, session) => {
+            if (!mounted) return;
+            
+            if (event === 'SIGNED_IN' && session?.user) {
+              const userData: User = {
+                id: session.user.id,
+                email: session.user.email || '',
+                full_name: session.user.user_metadata?.full_name,
+              };
+              
+              cachedUser = userData;
+              if (mounted) setUser(userData);
+              
+              const adminStatus = await checkAdminStatus();
+              cachedIsAdmin = adminStatus.isAdmin;
+              if (mounted) setIsAdmin(adminStatus.isAdmin);
+              
+              storeSessionCookie(session.user.id, session.user.email || '', adminStatus.role);
+            } else if (event === 'SIGNED_OUT') {
+              cachedUser = null;
+              cachedIsAdmin = false;
+              if (mounted) {
+                setUser(null);
+                setIsAdmin(false);
+              }
+              clearSessionCookie();
+            }
+          }).data.subscription;
+        }
+        return;
+      }
+      
+      // No cookie - check Supabase directly
       if (!client) {
         if (mounted) setLoading(false);
         return;
       }
 
-      // Retry getting session a few times (cookies might not be set immediately)
-      let session = null;
-      for (let i = 0; i < 3; i++) {
-        const { data } = await client.auth.getSession();
-        if (data.session) {
-          session = data.session;
-          break;
-        }
-        await new Promise(resolve => setTimeout(resolve, 300));
-      }
+      const { data: { session } } = await client.auth.getSession();
       
       if (session?.user) {
         const userData: User = {
@@ -123,7 +207,8 @@ export function useAuth() {
         cachedUser = userData;
         if (mounted) setUser(userData);
         
-        // Check admin status
+        storeSessionCookie(session.user.id, session.user.email || '');
+        
         const adminStatus = await checkAdminStatus();
         cachedIsAdmin = adminStatus.isAdmin;
         if (mounted) setIsAdmin(adminStatus.isAdmin);
@@ -131,7 +216,6 @@ export function useAuth() {
 
       if (mounted) setLoading(false);
 
-      // Subscribe to auth changes
       subscription = client.auth.onAuthStateChange(async (event, session) => {
         if (!mounted) return;
 
@@ -145,12 +229,11 @@ export function useAuth() {
           cachedUser = userData;
           if (mounted) setUser(userData);
           
-          // Check admin status after sign in
+          storeSessionCookie(session.user.id, session.user.email || '');
+          
           const adminStatus = await checkAdminStatus();
           cachedIsAdmin = adminStatus.isAdmin;
           if (mounted) setIsAdmin(adminStatus.isAdmin);
-          notifyListeners(userData, adminStatus.isAdmin);
-          
         } else if (event === 'SIGNED_OUT') {
           cachedUser = null;
           cachedIsAdmin = false;
@@ -158,7 +241,7 @@ export function useAuth() {
             setUser(null);
             setIsAdmin(false);
           }
-          notifyListeners(null, false);
+          clearSessionCookie();
         }
       }).data.subscription;
     };
@@ -179,6 +262,9 @@ export function useAuth() {
     
     if (error) return { success: false, error: error.message };
     if (!data.user?.email_confirmed_at) return { success: false, error: 'Please verify your email' };
+    
+    // Store session in cookie immediately after login
+    storeSessionCookie(data.user.id, data.user.email || '');
     
     return { success: true };
   }, []);
@@ -204,7 +290,7 @@ export function useAuth() {
     cachedIsAdmin = false;
     setUser(null);
     setIsAdmin(false);
-    notifyListeners(null, false);
+    clearSessionCookie();
     router.push('/');
     router.refresh();
   }, [router]);
