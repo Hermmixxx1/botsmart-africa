@@ -6,26 +6,24 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useStore } from '@/store/useStore';
 import { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuthSimple';
 import { SearchBar } from '@/components/SearchBar';
 import { CurrencySelector } from '@/components/CurrencySelector';
 
 export default function Navigation() {
   const { cart, getCartCount } = useStore();
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, isAdmin, signOut, loading } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
             <ShoppingBag className="h-6 w-6" />
             <span className="text-xl font-bold">Botsmart Africa</span>
           </Link>
 
-          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
             <Link href="/" className="text-sm font-medium hover:text-primary transition-colors">
               Home
@@ -39,7 +37,7 @@ export default function Navigation() {
                   Orders
                 </Link>
                 {isAdmin && (
-                  <Link href="/admin" className="text-sm font-medium hover:text-primary transition-colors">
+                  <Link href="/admin" className="text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors">
                     Admin
                   </Link>
                 )}
@@ -47,7 +45,6 @@ export default function Navigation() {
             )}
           </div>
 
-          {/* Right side: Cart, Wishlist, Search, Currency & User */}
           <div className="hidden md:flex items-center space-x-4">
             <SearchBar className="w-64" placeholder="Search products..." />
             <CurrencySelector />
@@ -101,60 +98,24 @@ export default function Navigation() {
             )}
           </div>
 
-          {/* Mobile menu button */}
           <button
             className="md:hidden"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
-            {isMobileMenuOpen ? (
-              <X className="h-6 w-6" />
-            ) : (
-              <Menu className="h-6 w-6" />
-            )}
+            {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>
 
-        {/* Mobile Navigation */}
         {isMobileMenuOpen && (
           <div className="md:hidden py-4 space-y-4 border-t">
-            <Link
-              href="/"
-              className="block text-sm font-medium hover:text-primary transition-colors"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Home
-            </Link>
-            <Link
-              href="/products"
-              className="block text-sm font-medium hover:text-primary transition-colors"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Products
-            </Link>
+            <Link href="/" className="block text-sm font-medium" onClick={() => setIsMobileMenuOpen(false)}>Home</Link>
+            <Link href="/products" className="block text-sm font-medium" onClick={() => setIsMobileMenuOpen(false)}>Products</Link>
             {user && (
               <>
-                <Link
-                  href="/profile"
-                  className="block text-sm font-medium hover:text-primary transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  My Account
-                </Link>
-                <Link
-                  href="/orders"
-                  className="block text-sm font-medium hover:text-primary transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Orders
-                </Link>
+                <Link href="/profile" className="block text-sm font-medium" onClick={() => setIsMobileMenuOpen(false)}>My Account</Link>
+                <Link href="/orders" className="block text-sm font-medium" onClick={() => setIsMobileMenuOpen(false)}>Orders</Link>
                 {isAdmin && (
-                  <Link
-                    href="/admin"
-                    className="block text-sm font-medium hover:text-primary transition-colors"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    Admin
-                  </Link>
+                  <Link href="/admin" className="block text-sm font-medium text-purple-600" onClick={() => setIsMobileMenuOpen(false)}>Admin</Link>
                 )}
               </>
             )}
@@ -163,10 +124,7 @@ export default function Navigation() {
                 <Button variant="ghost" size="icon" className="relative">
                   <ShoppingBag className="h-5 w-5" />
                   {getCartCount() > 0 && (
-                    <Badge
-                      variant="destructive"
-                      className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-                    >
+                    <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
                       {getCartCount()}
                     </Badge>
                   )}
@@ -179,10 +137,7 @@ export default function Navigation() {
                 </Button>
               ) : (
                 <Link href="/auth" onClick={() => setIsMobileMenuOpen(false)}>
-                  <Button>
-                    <User className="h-4 w-4 mr-2" />
-                    Sign In
-                  </Button>
+                  <Button><User className="h-4 w-4 mr-2" />Sign In</Button>
                 </Link>
               )}
             </div>

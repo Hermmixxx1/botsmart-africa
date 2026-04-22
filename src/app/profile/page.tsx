@@ -1,39 +1,31 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { User, Mail, Phone, MapPin, ShoppingBag, Heart, LogOut, ChevronRight, Loader2, Edit2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { User, Mail, ShoppingBag, Heart, LogOut, ChevronRight, Loader2, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/hooks/useAuth';
-import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuthSimple';
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, signOut, isLoading } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState({
-    full_name: '',
-    phone: '',
-  });
+  const [formData, setFormData] = useState({ full_name: '' });
 
-  // Redirect if not logged in
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!loading && !user) {
       router.push('/auth?redirect=/profile');
     }
-  }, [user, isLoading, router]);
+  }, [user, loading, router]);
 
-  // Set initial form data when user loads
   useEffect(() => {
     if (user) {
-      setFormData({
-        full_name: user.full_name || '',
-        phone: '',
-      });
+      setFormData({ full_name: user.full_name || '' });
     }
   }, [user]);
 
@@ -45,10 +37,7 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-
-      if (res.ok) {
-        setEditing(false);
-      }
+      if (res.ok) setEditing(false);
     } catch (error) {
       console.error('Error saving profile:', error);
     } finally {
@@ -56,15 +45,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
-      </div>
-    );
-  }
-
-  if (!user) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
@@ -84,7 +65,6 @@ export default function ProfilePage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Sidebar */}
           <div className="space-y-4">
             <Card>
               <CardContent className="p-4">
@@ -103,32 +83,24 @@ export default function ProfilePage() {
             <Card className="bg-purple-600 border-0">
               <CardContent className="p-4 space-y-2">
                 <Link href="/orders" className="flex items-center justify-between text-white hover:text-purple-100">
-                  <span className="flex items-center">
-                    <ShoppingBag className="mr-3 h-5 w-5" />
-                    My Orders
-                  </span>
+                  <span className="flex items-center"><ShoppingBag className="mr-3 h-5 w-5" />My Orders</span>
                   <ChevronRight className="h-4 w-4" />
                 </Link>
                 <Link href="/wishlist" className="flex items-center justify-between text-white hover:text-purple-100">
-                  <span className="flex items-center">
-                    <Heart className="mr-3 h-5 w-5" />
-                    Wishlist
-                  </span>
+                  <span className="flex items-center"><Heart className="mr-3 h-5 w-5" />Wishlist</span>
                   <ChevronRight className="h-4 w-4" />
                 </Link>
               </CardContent>
             </Card>
           </div>
 
-          {/* Main Content */}
           <div className="md:col-span-2">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Personal Information</CardTitle>
                 {!editing && (
                   <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
-                    <Edit2 className="mr-2 h-4 w-4" />
-                    Edit
+                    <Edit2 className="mr-2 h-4 w-4" />Edit
                   </Button>
                 )}
               </CardHeader>

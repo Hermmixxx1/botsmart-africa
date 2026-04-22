@@ -1,32 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Package, ShoppingBag, Users, Settings, LayoutDashboard, FileText, UserPlus, LogOut, Star, Loader2 } from 'lucide-react';
+import { Package, ShoppingBag, Users, Settings, LayoutDashboard, FileText, UserPlus, LogOut, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuthSimple';
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { user, isLoading, isAdmin, signOut } = useAuth();
+  const { user, isAdmin, loading, signOut } = useAuth();
 
   useEffect(() => {
-    // Redirect if not logged in or not admin
-    if (!isLoading) {
+    if (!loading) {
       if (!user) {
         router.push('/auth?redirect=/admin');
       } else if (!isAdmin) {
         router.push('/?error=not_admin');
       }
     }
-  }, [user, isLoading, isAdmin, router]);
+  }, [user, loading, isAdmin, router]);
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
@@ -57,47 +52,13 @@ export default function AdminLayout({
               </Link>
 
               <div className="hidden md:flex items-center space-x-4">
-                <Link href="/admin">
-                  <Button variant="ghost" size="sm">
-                    Dashboard
-                  </Button>
-                </Link>
-                <Link href="/admin/settings">
-                  <Button variant="ghost" size="sm">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
-                  </Button>
-                </Link>
-                <Link href="/admin/admins">
-                  <Button variant="ghost" size="sm">
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Admins
-                  </Button>
-                </Link>
-                <Link href="/admin/products">
-                  <Button variant="ghost" size="sm">
-                    <Package className="mr-2 h-4 w-4" />
-                    Products
-                  </Button>
-                </Link>
-                <Link href="/admin/orders">
-                  <Button variant="ghost" size="sm">
-                    <ShoppingBag className="mr-2 h-4 w-4" />
-                    Orders
-                  </Button>
-                </Link>
-                <Link href="/admin/sellers">
-                  <Button variant="ghost" size="sm">
-                    <Users className="mr-2 h-4 w-4" />
-                    Sellers
-                  </Button>
-                </Link>
-                <Link href="/admin/pages">
-                  <Button variant="ghost" size="sm">
-                    <FileText className="mr-2 h-4 w-4" />
-                    Pages
-                  </Button>
-                </Link>
+                <Link href="/admin"><Button variant="ghost" size="sm">Dashboard</Button></Link>
+                <Link href="/admin/settings"><Button variant="ghost" size="sm"><Settings className="mr-2 h-4 w-4" />Settings</Button></Link>
+                <Link href="/admin/admins"><Button variant="ghost" size="sm"><UserPlus className="mr-2 h-4 w-4" />Admins</Button></Link>
+                <Link href="/admin/products"><Button variant="ghost" size="sm"><Package className="mr-2 h-4 w-4" />Products</Button></Link>
+                <Link href="/admin/orders"><Button variant="ghost" size="sm"><ShoppingBag className="mr-2 h-4 w-4" />Orders</Button></Link>
+                <Link href="/admin/sellers"><Button variant="ghost" size="sm"><Users className="mr-2 h-4 w-4" />Sellers</Button></Link>
+                <Link href="/admin/pages"><Button variant="ghost" size="sm"><FileText className="mr-2 h-4 w-4" />Pages</Button></Link>
               </div>
             </div>
 

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuthSimple';
 import { useToast } from '@/lib/use-toast';
 
 function AuthContent() {
@@ -18,36 +18,28 @@ function AuthContent() {
   const redirect = searchParams.get('redirect') || '/';
   const { toast } = useToast();
   
-  // Use the unified auth hook
-  const { signIn, signUp, isLoading: authLoading } = useAuth();
+  const { signIn, signUp, loading } = useAuth();
   
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [emailNotVerified, setEmailNotVerified] = useState(false);
-  const [pendingEmail, setPendingEmail] = useState('');
-  const [resendLoading, setResendLoading] = useState(false);
-  const [verificationLoading, setVerificationLoading] = useState(false);
-  const [emailVerified, setEmailVerified] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   const [signInData, setSignInData] = useState({ email: '', password: '' });
   const [signUpData, setSignUpData] = useState({ email: '', password: '', fullName: '', confirmPassword: '' });
   const [resetEmail, setResetEmail] = useState('');
-  const [resetLoading, setResetLoading] = useState(false);
-  const [resetSent, setResetSent] = useState(false);
 
-  // Handle sign in
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
+    setSubmitting(true);
     
     const result = await signIn(signInData.email, signInData.password);
     
     if (!result.success) {
       setError(result.error || 'Login failed');
-      setLoading(false);
+      setSubmitting(false);
       return;
     }
     
@@ -57,10 +49,8 @@ function AuthContent() {
     } else {
       router.push(redirect);
     }
-    router.refresh();
   };
 
-  // Handle sign up
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -75,13 +65,13 @@ function AuthContent() {
       return;
     }
     
-    setLoading(true);
+    setSubmitting(true);
     
     const result = await signUp(signUpData.email, signUpData.password, signUpData.fullName);
     
     if (!result.success) {
       setError(result.error || 'Sign up failed');
-      setLoading(false);
+      setSubmitting(false);
       return;
     }
     
@@ -90,16 +80,12 @@ function AuthContent() {
       description: "Please check your email to verify your account.",
     });
     
-    setEmailNotVerified(true);
-    setPendingEmail(signUpData.email);
-    setLoading(false);
+    setSubmitting(false);
   };
 
-  // Handle password reset
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setResetLoading(true);
     
     try {
       const response = await fetch('/api/auth/reset-password', {
@@ -108,17 +94,14 @@ function AuthContent() {
         body: JSON.stringify({ email: resetEmail }),
       });
       
-      const data = await response.json();
-      
-      if (!response.ok) {
-        setError(data.error || 'Failed to send reset email');
-      } else {
+      if (response.ok) {
         setResetSent(true);
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Failed to send reset email');
       }
     } catch {
       setError('Failed to send reset email');
-    } finally {
-      setResetLoading(false);
     }
   };
 
@@ -138,10 +121,7 @@ function AuthContent() {
           <CardContent className="text-center">
             <Button 
               variant="outline" 
-              onClick={() => {
-                setResetSent(false);
-                setResetEmail('');
-              }}
+              onClick={() => { setResetSent(false); setResetEmail(''); }}
               className="bg-white/10 border-white/20 text-white hover:bg-white/20"
             >
               Back to Login
@@ -181,7 +161,6 @@ function AuthContent() {
                 <TabsTrigger value="signup" className="data-[state=active]:bg-white/20">Sign Up</TabsTrigger>
               </TabsList>
 
-              {/* Sign In Tab */}
               <TabsContent value="signin" className="space-y-4">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
@@ -217,8 +196,8 @@ function AuthContent() {
                       </button>
                     </div>
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  <Button type="submit" className="w-full" disabled={submitting}>
+                    {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Sign In
                   </Button>
                 </form>
@@ -229,7 +208,6 @@ function AuthContent() {
                 </div>
               </TabsContent>
 
-              {/* Sign Up Tab */}
               <TabsContent value="signup" className="space-y-4">
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-2">
@@ -258,25 +236,16 @@ function AuthContent() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-password" className="text-white">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="signup-password"
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Min 6 characters"
-                        value={signUpData.password}
-                        onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
-                        required
-                        minLength={6}
-                        className="bg-white/10 border-white/20 text-white placeholder:text-white/50 pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white"
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
+                    <Input
+                      id="signup-password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Min 6 characters"
+                      value={signUpData.password}
+                      onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                      required
+                      minLength={6}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-confirm" className="text-white">Confirm Password</Label>
@@ -291,14 +260,13 @@ function AuthContent() {
                       className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  <Button type="submit" className="w-full" disabled={submitting}>
+                    {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Create Account
                   </Button>
                 </form>
               </TabsContent>
 
-              {/* Reset Password Tab */}
               <TabsContent value="reset" className="space-y-4">
                 <form onSubmit={handleResetPassword} className="space-y-4">
                   <div className="space-y-2">
@@ -313,8 +281,7 @@ function AuthContent() {
                       className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={resetLoading}>
-                    {resetLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  <Button type="submit" className="w-full">
                     Send Reset Link
                   </Button>
                 </form>
