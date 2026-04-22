@@ -1,41 +1,27 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { User, Mail, ShoppingBag, Heart, LogOut, ChevronRight, Loader2, Edit2 } from 'lucide-react';
+import { User, Mail, ShoppingBag, Heart, ChevronRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useAuth } from '@/hooks/useAuthSimple';
 
 export default function ProfilePage() {
-  const { user, loading, signOut } = useAuth();
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState({ full_name: '' });
+  const [user, setUser] = useState<{ email?: string; full_name?: string } | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      setFormData({ full_name: user.full_name || '' });
-    }
-  }, [user]);
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const res = await fetch('/api/profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      if (res.ok) setEditing(false);
-    } catch (error) {
-      console.error('Error saving profile:', error);
-    } finally {
-      setSaving(false);
-    }
-  };
+    // Try to get user from API
+    fetch('/api/auth/check-session')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.user) {
+          setUser({ email: data.user.email, full_name: data.user.full_name });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   if (loading) {
     return (
@@ -50,10 +36,13 @@ export default function ProfilePage() {
       <div className="container mx-auto px-4 max-w-4xl">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-gray-900">My Account</h1>
-          {user && (
-            <Button variant="outline" onClick={signOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
+          {user ? (
+            <Button variant="outline" asChild>
+              <Link href="/auth">Sign Out</Link>
+            </Button>
+          ) : (
+            <Button asChild>
+              <Link href="/auth?redirect=/profile">Sign In</Link>
             </Button>
           )}
         </div>
@@ -86,78 +75,41 @@ export default function ProfilePage() {
                 </Link>
               </CardContent>
             </Card>
-
-            {!user && (
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <p className="text-sm text-gray-500 mb-3">Sign in to access all features</p>
-                  <Button asChild className="w-full">
-                    <Link href="/auth?redirect=/profile">Sign In</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           <div className="md:col-span-2">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader>
                 <CardTitle>Personal Information</CardTitle>
-                {user && !editing && (
-                  <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
-                    <Edit2 className="mr-2 h-4 w-4" />Edit
-                  </Button>
-                )}
               </CardHeader>
               <CardContent>
-                {editing ? (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="full_name">Full Name</Label>
-                      <Input
-                        id="full_name"
-                        value={formData.full_name}
-                        onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                        placeholder="Enter your full name"
-                      />
-                    </div>
-                    <div className="flex space-x-3 pt-4">
-                      <Button onClick={handleSave} disabled={saving}>
-                        {saving ? 'Saving...' : 'Save Changes'}
-                      </Button>
-                      <Button variant="outline" onClick={() => setEditing(false)}>
-                        Cancel
-                      </Button>
+                <div className="space-y-4">
+                  <div className="flex items-center">
+                    <User className="h-5 w-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-sm text-gray-500">Full Name</p>
+                      <p className="font-medium">{user?.full_name || 'Not set'}</p>
                     </div>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="flex items-center">
-                      <User className="h-5 w-5 text-gray-400 mr-3" />
-                      <div>
-                        <p className="text-sm text-gray-500">Full Name</p>
-                        <p className="font-medium">{user?.full_name || 'Not set'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center">
-                      <Mail className="h-5 w-5 text-gray-400 mr-3" />
-                      <div>
-                        <p className="text-sm text-gray-500">Email</p>
-                        <p className="font-medium">{user?.email || 'Not logged in'}</p>
-                      </div>
+                  <div className="flex items-center">
+                    <Mail className="h-5 w-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-sm text-gray-500">Email</p>
+                      <p className="font-medium">{user?.email || 'Not logged in'}</p>
                     </div>
                   </div>
-                )}
+                </div>
               </CardContent>
             </Card>
 
-            {user && (
+            {!user && (
               <Card className="mt-6">
-                <CardHeader>
-                  <CardTitle>Account Security</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Button variant="outline">Change Password</Button>
+                <CardContent className="p-6 text-center">
+                  <h3 className="text-lg font-semibold mb-2">Sign in to access all features</h3>
+                  <p className="text-muted-foreground mb-4">Track orders, manage your wishlist, and more</p>
+                  <Button asChild>
+                    <Link href="/auth?redirect=/profile">Sign In</Link>
+                  </Button>
                 </CardContent>
               </Card>
             )}

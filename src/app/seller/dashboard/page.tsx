@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Package, DollarSign, Clock, CheckCircle2, XCircle, Plus, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -57,28 +57,25 @@ export default function SellerDashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch seller profile
       const profileRes = await fetch('/api/sellers');
       if (profileRes.ok) {
         const profileData = await profileRes.json();
         setProfile(profileData.seller);
       }
 
-      // Fetch products
       const productsRes = await fetch('/api/seller/products');
       if (productsRes.ok) {
         const productsData = await productsRes.json();
-        setProducts(productsData.products);
+        setProducts(productsData.products || []);
       }
 
-      // Fetch orders
       const ordersRes = await fetch('/api/seller/orders');
       if (ordersRes.ok) {
         const ordersData = await ordersRes.json();
-        setOrderItems(ordersData.order_items);
+        setOrderItems(ordersData.order_items || []);
         setStats({
-          totalEarnings: ordersData.total_earnings,
-          pendingPayouts: ordersData.pending_payouts,
+          totalEarnings: ordersData.total_earnings || 0,
+          pendingPayouts: ordersData.pending_payouts || 0,
           totalOrders: ordersData.order_items?.length || 0,
         });
       }
@@ -91,23 +88,17 @@ export default function SellerDashboardPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'approved':
-        return 'bg-green-500';
-      case 'rejected':
-        return 'bg-red-500';
-      default:
-        return 'bg-yellow-500';
+      case 'approved': return 'bg-green-500';
+      case 'rejected': return 'bg-red-500';
+      default: return 'bg-yellow-500';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'approved':
-        return <CheckCircle2 className="h-4 w-4" />;
-      case 'rejected':
-        return <XCircle className="h-4 w-4" />;
-      default:
-        return <Clock className="h-4 w-4" />;
+      case 'approved': return <CheckCircle2 className="h-4 w-4" />;
+      case 'rejected': return <XCircle className="h-4 w-4" />;
+      default: return <Clock className="h-4 w-4" />;
     }
   };
 
@@ -160,12 +151,9 @@ export default function SellerDashboardPage() {
                     {profile.status.toUpperCase()}
                   </Badge>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {profile.status === 'pending' &&
-                      'Your account is under review. You will be able to sell once approved.'}
-                    {profile.status === 'rejected' &&
-                      `Your account was rejected: ${profile.rejection_reason}`}
-                    {profile.status === 'approved' &&
-                      'Your account is approved and you can start selling!'}
+                    {profile.status === 'pending' && 'Your account is under review.'}
+                    {profile.status === 'rejected' && `Rejected: ${profile.rejection_reason}`}
+                    {profile.status === 'approved' && 'Your account is approved!'}
                   </p>
                 </div>
               </div>
@@ -225,9 +213,6 @@ export default function SellerDashboardPage() {
                   <CardContent className="flex flex-col items-center justify-center py-16">
                     <Package className="h-16 w-16 text-muted-foreground mb-4" />
                     <h2 className="text-2xl font-semibold mb-2">No products yet</h2>
-                    <p className="text-muted-foreground mb-6">
-                      Start by adding your first product
-                    </p>
                     <Button asChild>
                       <Link href="/seller/products/new">Add First Product</Link>
                     </Button>
@@ -248,11 +233,6 @@ export default function SellerDashboardPage() {
                           <Badge variant={product.is_active ? 'default' : 'secondary'}>
                             {product.is_active ? 'Active' : 'Inactive'}
                           </Badge>
-                          <Button size="sm" variant="outline" asChild>
-                            <Link href={`/admin/products/${product.id}/edit`}>
-                              Edit
-                            </Link>
-                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -265,11 +245,7 @@ export default function SellerDashboardPage() {
               {orderItems.length === 0 ? (
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-16">
-                    <Package className="h-16 w-16 text-muted-foreground mb-4" />
-                    <h2 className="text-2xl font-semibold mb-2">No orders yet</h2>
-                    <p className="text-muted-foreground">
-                      Orders will appear here once customers purchase your products
-                    </p>
+                    <p className="text-muted-foreground">No orders yet</p>
                   </CardContent>
                 </Card>
               ) : (
@@ -277,32 +253,16 @@ export default function SellerDashboardPage() {
                   {orderItems.map((item) => (
                     <Card key={item.id}>
                       <CardContent className="p-6">
-                        <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-start justify-between">
                           <div>
                             <h3 className="font-semibold">{item.product_name}</h3>
                             <p className="text-sm text-muted-foreground">
                               Order: {item.orders.order_number}
                             </p>
-                            <p className="text-sm text-muted-foreground">
-                              {new Date(item.created_at).toLocaleDateString()}
-                            </p>
                           </div>
-                          <div className="text-right">
-                            <p className="font-semibold text-lg">
-                              ${(parseFloat(item.seller_payout)).toFixed(2)}
-                            </p>
-                            <Badge
-                              variant={item.payout_status === 'paid' ? 'default' : 'secondary'}
-                            >
-                              {item.payout_status}
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="border-t pt-4 flex justify-between text-sm">
-                          <span>Qty: {item.quantity} × ${parseFloat(item.price).toFixed(2)}</span>
-                          <span className="text-muted-foreground">
-                            Customer order status: {item.orders.status}
-                          </span>
+                          <p className="font-semibold">
+                            ${parseFloat(item.seller_payout).toFixed(2)}
+                          </p>
                         </div>
                       </CardContent>
                     </Card>
@@ -318,7 +278,7 @@ export default function SellerDashboardPage() {
             <CardContent className="flex flex-col items-center justify-center py-16">
               <h2 className="text-2xl font-semibold mb-2">No Seller Account</h2>
               <p className="text-muted-foreground mb-6">
-                Register as a seller to start selling products
+                Register as a seller to start selling
               </p>
               <Button asChild>
                 <Link href="/seller/register">Register as Seller</Link>

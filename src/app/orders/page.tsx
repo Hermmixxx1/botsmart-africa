@@ -58,33 +58,12 @@ export default function OrdersPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-500';
-      case 'processing':
-        return 'bg-blue-500';
-      case 'shipped':
-        return 'bg-purple-500';
-      case 'delivered':
-        return 'bg-green-500';
-      case 'cancelled':
-        return 'bg-red-500';
-      default:
-        return 'bg-gray-500';
-    }
-  };
-
   const getPaymentStatusColor = (status: string) => {
     switch (status) {
-      case 'paid':
-        return 'default';
-      case 'pending':
-        return 'secondary';
-      case 'failed':
-        return 'destructive';
-      default:
-        return 'secondary';
+      case 'paid': return 'default';
+      case 'pending': return 'secondary';
+      case 'failed': return 'destructive';
+      default: return 'secondary';
     }
   };
 
@@ -124,15 +103,9 @@ export default function OrdersPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="text-xl">
-                        {order.order_number}
-                      </CardTitle>
+                      <CardTitle className="text-xl">{order.order_number}</CardTitle>
                       <p className="text-sm text-muted-foreground">
-                        {new Date(order.created_at).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
+                        {new Date(order.created_at).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="flex gap-2">
@@ -144,7 +117,6 @@ export default function OrdersPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Order Items */}
                   <div className="space-y-3">
                     {order.order_items.map((item) => (
                       <div key={item.id} className="flex items-center gap-4">
@@ -168,33 +140,8 @@ export default function OrdersPage() {
                     ))}
                   </div>
 
-                  {/* Shipping Address */}
                   <div className="border-t pt-4">
-                    <p className="text-sm font-medium mb-1">Shipping Address</p>
-                    <p className="text-sm text-muted-foreground">
-                      {order.addresses.full_name}<br />
-                      {order.addresses.address_line1}<br />
-                      {order.addresses.city}, {order.addresses.state}{' '}
-                      {order.addresses.postal_code}<br />
-                      {order.addresses.country}
-                    </p>
-                  </div>
-
-                  {/* Order Total */}
-                  <div className="border-t pt-4">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Subtotal</span>
-                      <span>${parseFloat(order.subtotal).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Tax</span>
-                      <span>${parseFloat(order.tax).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Shipping</span>
-                      <span>${parseFloat(order.shipping).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-lg font-bold pt-2">
+                    <div className="flex justify-between text-lg font-bold">
                       <span>Total</span>
                       <span>${parseFloat(order.total).toFixed(2)}</span>
                     </div>

@@ -3,10 +3,8 @@
 import Link from 'next/link';
 import { Package, ShoppingBag, Users, Settings, LayoutDashboard, FileText, UserPlus, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuthSimple';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, signOut } = useAuth();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -31,10 +29,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
 
             <div className="flex items-center space-x-4">
-              {user && <span className="text-sm text-gray-500">{user.email}</span>}
-              <Button variant="ghost" size="sm" onClick={signOut}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign Out
+              <Button variant="outline" asChild>
+                <Link href="/">Back to Site</Link>
               </Button>
             </div>
           </div>
