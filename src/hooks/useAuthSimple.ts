@@ -81,12 +81,12 @@ export function useAuth() {
         
         // Check admin
         try {
-          const res = await fetch('/api/auth/check-admin', {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-          });
+          const res = await fetch('/api/auth/check-admin');
           const data = await res.json();
+          console.log('Admin check result:', data);
           if (mounted) setIsAdmin(data.isAdmin === true);
         } catch (e) {
+          console.error('Admin check failed:', e);
           if (mounted) setIsAdmin(false);
         }
       } else {

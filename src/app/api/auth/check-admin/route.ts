@@ -2,13 +2,13 @@
  * Check Admin Status API
  * GET /api/auth/check-admin
  * 
- * Receives JWT token from Authorization header
+ * Uses cookies for session (Supabase SSR style)
  */
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
-// Helper to get env vars
 function getEnv() {
   return {
     url: process.env.NEXT_PUBLIC_SUPABASE_URL || 
@@ -21,7 +21,7 @@ function getEnv() {
   };
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const { url, anonKey, serviceKey } = getEnv();
     
@@ -32,36 +32,38 @@ export async function GET(request: Request) {
       }, { status: 500 });
     }
 
-    // Get JWT token from Authorization header
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    const cookieStore = await cookies();
 
-    // Create client with JWT token in global headers
-    const supabase = createClient(url, anonKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-      global: {
-        headers: {
-          Authorization: `Bearer ${token}`,
+    // Create server client with cookies
+    const supabase = createServerClient(url, anonKey, {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
         },
       },
     });
 
-    // Get user from the JWT
+    // Get user from session
     const { data: { user }, error } = await supabase.auth.getUser();
 
     if (error || !user) {
       return NextResponse.json({ 
         isAdmin: false, 
-        error: 'Not authenticated' 
+        error: 'Not authenticated',
+        debug: error?.message 
       }, { status: 401 });
     }
 
-    // Check if user is admin using service role client
+    // Check admin status using service role
     if (serviceKey) {
-      const adminClient = createClient(url, serviceKey);
-      
+      const adminClient = createServerClient(url, serviceKey, {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+        },
+      });
+
       const { data: adminUser, error: dbError } = await adminClient
         .from('admin_users')
         .select('*, admin_roles(*)')
@@ -72,34 +74,29 @@ export async function GET(request: Request) {
       if (dbError || !adminUser) {
         return NextResponse.json({ 
           isAdmin: false, 
-          error: 'Not an admin' 
+          error: 'Not an admin',
+          userId: user.id
         }, { status: 403 });
       }
 
       return NextResponse.json({
         isAdmin: true,
-        user: {
-          id: user.id,
-          email: user.email,
-        },
+        user: { id: user.id, email: user.email },
         role: adminUser.admin_roles?.name || 'admin',
-        permissions: adminUser.admin_roles?.permissions || [],
       });
     }
 
-    return NextResponse.json({
-      isAdmin: false,
-      user: {
-        id: user.id,
-        email: user.email,
-      },
+    // No service key - assume authenticated but not admin
+    return NextResponse.json({ 
+      isAdmin: false, 
+      error: 'Service key not configured' 
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Check admin error:', error);
     return NextResponse.json({ 
       isAdmin: false, 
-      error: 'Server error' 
+      error: error.message || 'Server error' 
     }, { status: 500 });
   }
 }
